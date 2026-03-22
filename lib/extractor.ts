@@ -20,30 +20,45 @@ export async function extractFromText(text: string): Promise<string> {
   return text.trim()
 }
 
-export async function extractFromURL(url: string): Promise<string> {
-  // 1. Hacemos fetch de la URL como si fuera un navegador
-  const response = await fetch(url, {
-    headers: { 'User-Agent': 'Mozilla/5.0' } // nos identificamos como navegador
-  })
+// Umbral mínimo de caracteres para considerar que Cheerio extrajo contenido útil.
+// Si la página cargó contenido con JavaScript, Cheerio va a devolver muy poco texto.
+const MIN_CONTENT_LENGTH = 500
 
-  if (!response.ok) {
-    throw new Error(`No se pudo acceder a la URL: ${url}`)
+export async function extractFromURL(url: string): Promise<string> {
+  // INTENTO 1: Cheerio — rápido, sin dependencias externas
+  // Funciona bien en páginas estáticas donde el contenido está en el HTML original
+  try {
+    const response = await fetch(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0' }
+    })
+
+    if (response.ok) {
+      const html = await response.text()
+      const $ = cheerio.load(html)
+      $('script, style, nav, footer, header, aside, iframe').remove()
+      const text = $('body').text().replace(/\s+/g, ' ').trim()
+
+      // Si Cheerio extrajo suficiente contenido, lo usamos directamente
+      if (text.length >= MIN_CONTENT_LENGTH) {
+        return text
+      }
+      console.log(`Cheerio extrajo poco contenido (${text.length} chars), intentando con Jina...`)
+    }
+  } catch (error) {
+    console.warn('Cheerio falló, intentando con Jina...', error)
   }
 
-  // 2. Obtenemos el HTML crudo
-  const html = await response.text()
+  // INTENTO 2: Jina AI Reader — maneja páginas con JavaScript
+  // Jina renderiza la página completa y devuelve el contenido en markdown limpio
+  // No requiere API key, es gratuito
+  const jinaUrl = `https://r.jina.ai/${url}`
+  const jinaResponse = await fetch(jinaUrl, {
+    headers: { 'Accept': 'text/plain' }
+  })
 
-  // 3. Cargamos el HTML en cheerio para poder manipularlo
-  const $ = cheerio.load(html)
+  if (!jinaResponse.ok) {
+    throw new Error(`No se pudo acceder a la URL ni con Cheerio ni con Jina: ${url}`)
+  }
 
-  // 4. Eliminamos elementos que no tienen contenido útil
-  $('script, style, nav, footer, header, aside, iframe').remove()
-
-  // 5. Extraemos solo el texto del body
-  const text = $('body').text()
-
-  // 6. Limpiamos espacios múltiples que quedan tras eliminar elementos
-  return text
-    .replace(/\s+/g, ' ')
-    .trim()
+  return jinaResponse.text()
 }
