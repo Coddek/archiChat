@@ -5,10 +5,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { processDocument } from '@/lib/pipeline'
 
-// Aumentamos el límite de tamaño del body a 10MB para aceptar PDFs grandes
-export const config = {
-  api: { bodyParser: { sizeLimit: '10mb' } }
-}
 
 export async function POST(req: NextRequest) {
   try {
