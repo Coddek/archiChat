@@ -24,7 +24,7 @@ export async function POST(req: NextRequest) {
     const validation = MessageSchema.safeParse({ question: lastQuestion })
     if (!validation.success) {
       return NextResponse.json(
-        { error: validation.error.errors[0].message },
+        { error: validation.error.issues[0].message },
         { status: 400 }
       )
     }
@@ -61,11 +61,9 @@ Respondé en español, de forma directa y concisa. Sin listas innecesarias.`
       sources: [],
     })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error en chat:', error)
-    return NextResponse.json(
-      { error: error.message || 'Error interno' },
-      { status: 500 }
-    )
+    const message = error instanceof Error ? error.message : 'Error interno'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

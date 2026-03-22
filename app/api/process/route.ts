@@ -41,11 +41,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ success: true, ...result })
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Error procesando documento:', error)
-    return NextResponse.json(
-      { error: error.message || 'Error interno' },
-      { status: 500 }
-    )
+    const message = error instanceof Error ? error.message : 'Error interno'
+    return NextResponse.json({ error: message }, { status: 500 })
   }
 }

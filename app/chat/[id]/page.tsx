@@ -137,7 +137,7 @@ export default function ChatPage() {
           content: data.answer,
         },
       ]);
-    } catch (error: any) {
+    } catch {
       toast.error("Error al conectar con la IA");
     } finally {
       setLoading(false);
