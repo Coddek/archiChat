@@ -1,0 +1,33 @@
+SKILLS 
+
+
+ # ════════════════════════════════════                                                                                                                                                                    
+  # CAPA 1: Stack técnico
+  # ════════════════════════════════════
+  npx skills add supabase/agent-skills
+  npx skills add https://github.com/wshobson/agents --skill typescript-advanced-types
+  npx skills add https://github.com/wshobson/agents --skill nodejs-patterns
+  npx skills add https://github.com/wshobson/agents --skill javascript-testing
+  npx skills add https://github.com/wshobson/agents --skill async-python-patterns
+  npx skills add https://github.com/wshobson/agents --skill python-performance-optimization
+
+  # ════════════════════════════════════
+  # CAPA 2: Advisory
+  # ════════════════════════════════════
+  npx skills add https://github.com/Jeffallan/claude-skills --skill architecture-designer
+  npx skills add https://github.com/Jeffallan/claude-skills --skill security-reviewer
+  npx skills add https://github.com/Jeffallan/claude-skills --skill code-reviewer
+
+  # ════════════════════════════════════
+  # CAPA 3: Calidad y prevención
+  # ════════════════════════════════════
+  npx skills add https://github.com/wshobson/agents --skill debugging-strategies
+  npx skills add https://github.com/wshobson/agents --skill error-handling-patterns
+
+  # ════════════════════════════════════
+  # CAPA 4: Herramientas
+  # ════════════════════════════════════
+  npx skills add https://github.com/wshobson/agents --skill git-advanced-workflows
+  npx skills add https://github.com/wshobson/agents --skill backend-development
+  npx skills add https://github.com/wshobson/agents --skill security-scanning
+  npx skills add https://github.com/FrancyJGLisboa/agent-skill-creator
