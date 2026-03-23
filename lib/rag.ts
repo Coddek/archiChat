@@ -59,9 +59,20 @@ export async function ragQuery(
   const maxSimilarity = Math.max(...relevantChunks.map((c: any) => c.similarity))
   const isRelevantToDoc = maxSimilarity > 0.3
 
-  // Detectamos si la pregunta pide comparación con fuentes externas
-  // En ese caso ignoramos el documento y mandamos directo a búsqueda web
-  const asksForWebSearch = /otros sitios?|otras tiendas?|comparar|más barato|precio en|mercadolibre|garbarino|musimundo|internet|web/i.test(question)
+  // Detectamos si la pregunta requiere información de internet usando la propia IA.
+  // Le preguntamos a Llama (rápido y gratis) que clasifique la intención.
+  // Así no dependemos de keywords hardcodeadas — entiende lenguaje natural.
+  const intentResponse = await callAI(
+    `Clasificá la siguiente pregunta en UNA de estas categorías. Respondé SOLO con la palabra, sin explicación:
+- WEB: si el usuario pide buscar en internet, comparar precios, ver otros sitios, info actual, o dice "buscá", "googleá", "chequeá online", etc.
+- DOC: si pregunta sobre el contenido del documento
+- GENERAL: cualquier otra pregunta
+
+Pregunta: "${question}"
+Categoría:`
+  )
+  const intent = intentResponse.trim().toUpperCase()
+  const asksForWebSearch = intent.includes('WEB')
 
   // PASO 4: Construir el prompt y elegir el modelo según el tipo de pregunta
   let answer: string
