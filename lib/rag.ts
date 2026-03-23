@@ -82,9 +82,11 @@ PREGUNTA: ${question}
 RESPUESTA:`
 
   // PASO 5: Llamar a la IA con el contexto
-  // Si la pregunta es del documento usamos Llama (rápido, sin búsqueda web)
-  // Si no es del documento usamos Compound Mini (tiene acceso a internet en tiempo real)
-  const answer = isRelevantToDoc ? await callAI(prompt) : await callAIWithSearch(prompt)
+  // Siempre usamos Compound Mini — tiene acceso a internet en tiempo real.
+  // Cuando la pregunta es del documento le pasamos el contexto de los chunks.
+  // Cuando no lo es, busca en la web directamente.
+  // Él solo decide cuándo usar el contexto y cuándo buscar online.
+  const answer = await callAIWithSearch(prompt)
 
   // PASO 6: Devolver la respuesta + las fuentes usadas
   // Las fuentes le muestran al usuario qué fragmentos del documento usó la IA
