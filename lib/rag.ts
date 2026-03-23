@@ -59,9 +59,26 @@ export async function ragQuery(
   const maxSimilarity = Math.max(...relevantChunks.map((c: any) => c.similarity))
   const isRelevantToDoc = maxSimilarity > 0.3
 
-  // PASO 4: Construir el prompt según si la pregunta es relevante al documento o no
-  const prompt = isRelevantToDoc
-    ? `Sos archiChat, un asistente inteligente para analizar documentos.
+  // Detectamos si la pregunta pide comparación con fuentes externas
+  // En ese caso ignoramos el documento y mandamos directo a búsqueda web
+  const asksForWebSearch = /otros sitios?|otras tiendas?|comparar|más barato|precio en|mercadolibre|garbarino|musimundo|internet|web/i.test(question)
+
+  // PASO 4: Construir el prompt y elegir el modelo según el tipo de pregunta
+  let answer: string
+
+  if (asksForWebSearch) {
+    // Pregunta que necesita info externa — Compound Mini busca en internet
+    const prompt = `Sos archiChat. El usuario pregunta sobre precios o información de internet.
+Buscá en la web la información actualizada y respondé en español con datos reales.
+
+PREGUNTA: ${question}
+
+RESPUESTA:`
+    answer = await callAIWithSearch(prompt)
+
+  } else if (isRelevantToDoc) {
+    // Pregunta sobre el documento — usamos RAG con contexto
+    const prompt = `Sos archiChat, un asistente inteligente para analizar documentos.
 Respondé la siguiente pregunta usando principalmente la información del contexto del documento.
 Podés complementar con tu conocimiento general si es necesario, pero priorizá el contenido del documento.
 Respondé en español, de forma clara y directa. Usá markdown para formatear si ayuda a la claridad.
@@ -72,21 +89,18 @@ ${context}
 PREGUNTA: ${question}
 
 RESPUESTA:`
-    : `Sos archiChat, un asistente inteligente.
-La pregunta del usuario no parece estar relacionada con el documento actual, así que respondé usando tu conocimiento general.
-Respondé en español, de forma clara, directa y útil.
-Podés mencionar brevemente que la respuesta no proviene del documento si es relevante.
+    answer = await callAI(prompt)
+
+  } else {
+    // Pregunta general — Compound Mini responde con conocimiento general y web si hace falta
+    const prompt = `Sos archiChat, un asistente inteligente.
+Respondé la siguiente pregunta en español, de forma clara, directa y útil.
 
 PREGUNTA: ${question}
 
 RESPUESTA:`
-
-  // PASO 5: Llamar a la IA con el contexto
-  // Siempre usamos Compound Mini — tiene acceso a internet en tiempo real.
-  // Cuando la pregunta es del documento le pasamos el contexto de los chunks.
-  // Cuando no lo es, busca en la web directamente.
-  // Él solo decide cuándo usar el contexto y cuándo buscar online.
-  const answer = await callAIWithSearch(prompt)
+    answer = await callAIWithSearch(prompt)
+  }
 
   // PASO 6: Devolver la respuesta + las fuentes usadas
   // Las fuentes le muestran al usuario qué fragmentos del documento usó la IA
