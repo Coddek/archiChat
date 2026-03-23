@@ -58,3 +58,24 @@ export async function callAI(prompt: string): Promise<string> {
     throw new Error('Todos los proveedores de IA fallaron')
   }
 }
+
+// ─── GENERACIÓN CON BÚSQUEDA WEB ──────────────────────────────────────────────
+
+// Usa Groq Compound Mini — un modelo que tiene acceso a internet en tiempo real.
+// Él solo decide cuándo buscar en la web y cuándo responder desde su conocimiento.
+// Lo usamos cuando la pregunta no está relacionada al documento activo,
+// así el usuario puede hacer preguntas sobre precios, noticias, comparaciones, etc.
+export async function callAIWithSearch(prompt: string): Promise<string> {
+  try {
+    const response = await groq.chat.completions.create({
+      model: 'groq/compound-mini',
+      messages: [{ role: 'user', content: prompt }],
+      max_tokens: 1024,
+    })
+    return response.choices[0].message.content ?? ''
+  } catch (error) {
+    // Si Compound falla, caemos al modelo normal sin búsqueda web
+    console.warn('Compound Mini falló, usando Llama sin búsqueda web...', error)
+    return callAI(prompt)
+  }
+}

@@ -4,7 +4,7 @@
 // y genera una respuesta basada ÚNICAMENTE en esos fragmentos
 
 import { createClient } from '@supabase/supabase-js'
-import { getEmbedding, callAI } from './ai'
+import { getEmbedding, callAI, callAIWithSearch } from './ai'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -82,7 +82,9 @@ PREGUNTA: ${question}
 RESPUESTA:`
 
   // PASO 5: Llamar a la IA con el contexto
-  const answer = await callAI(prompt)
+  // Si la pregunta es del documento usamos Llama (rápido, sin búsqueda web)
+  // Si no es del documento usamos Compound Mini (tiene acceso a internet en tiempo real)
+  const answer = isRelevantToDoc ? await callAI(prompt) : await callAIWithSearch(prompt)
 
   // PASO 6: Devolver la respuesta + las fuentes usadas
   // Las fuentes le muestran al usuario qué fragmentos del documento usó la IA
