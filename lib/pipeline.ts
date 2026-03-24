@@ -46,10 +46,14 @@ export async function processDocument({ documentId, sourceType, content }: Proce
   console.log(`Documento dividido en ${chunks.length} chunks`)
 
   // PASO 3: Por cada chunk, generar su embedding y guardarlo en Supabase
-  // Procesamos de a uno para no saturar la API de Together AI
+  // Agregamos un delay de 1s cada 10 chunks para no superar el rate limit de Gemini
   for (let i = 0; i < chunks.length; i++) {
 
-    // Convertimos el texto del chunk en un vector de 768 números
+    if (i > 0 && i % 10 === 0) {
+      await new Promise(resolve => setTimeout(resolve, 1000))
+    }
+
+    // Convertimos el texto del chunk en un vector de 3072 números
     const embedding = await getEmbedding(chunks[i])
 
     // Guardamos el chunk + su vector en la tabla "chunks"
