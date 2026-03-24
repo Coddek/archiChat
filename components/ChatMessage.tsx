@@ -55,6 +55,16 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
               tr: ({ children }) => <tr className="border-b border-border/50">{children}</tr>,
               th: ({ children }) => <th className="text-left py-1 px-2 font-semibold text-muted-foreground">{children}</th>,
               td: ({ children }) => <td className="py-1 px-2">{children}</td>,
+              a: ({ href, children }) => (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:text-blue-300 underline underline-offset-2 break-all"
+                >
+                  {children}
+                </a>
+              ),
             }}
           >
             {content}
