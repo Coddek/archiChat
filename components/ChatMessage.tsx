@@ -6,6 +6,7 @@
 // una única responsabilidad: este dibuja mensajes, la página maneja lógica.
 
 import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 // Props tipadas: le decimos exactamente qué datos necesita este componente
@@ -33,6 +34,7 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
           content
         ) : (
           <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
             components={{
               p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
               ul: ({ children }) => <ul className="list-disc pl-4 mb-2 space-y-1">{children}</ul>,
@@ -43,6 +45,16 @@ export function ChatMessage({ role, content }: ChatMessageProps) {
               h2: ({ children }) => <h2 className="text-sm font-bold mb-2">{children}</h2>,
               h3: ({ children }) => <h3 className="text-sm font-semibold mb-1">{children}</h3>,
               code: ({ children }) => <code className="bg-muted px-1 py-0.5 rounded text-xs font-mono">{children}</code>,
+              table: ({ children }) => (
+                <div className="overflow-x-auto mb-3">
+                  <table className="w-full text-xs border-collapse">{children}</table>
+                </div>
+              ),
+              thead: ({ children }) => <thead className="border-b border-border">{children}</thead>,
+              tbody: ({ children }) => <tbody>{children}</tbody>,
+              tr: ({ children }) => <tr className="border-b border-border/50">{children}</tr>,
+              th: ({ children }) => <th className="text-left py-1 px-2 font-semibold text-muted-foreground">{children}</th>,
+              td: ({ children }) => <td className="py-1 px-2">{children}</td>,
             }}
           >
             {content}
