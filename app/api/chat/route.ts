@@ -32,7 +32,7 @@ export async function POST(req: NextRequest) {
     // Si el documento fue procesado, usamos RAG
     // La IA responde basándose en los chunks del documento
     if (isProcessed && documentId) {
-      const result = await ragQuery(lastQuestion, documentId)
+      const result = await ragQuery(lastQuestion, documentId, documentTitle)
       return NextResponse.json({
         answer: result.answer,
         sources: result.sources,

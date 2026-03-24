@@ -22,7 +22,8 @@ interface RAGResult {
 
 export async function ragQuery(
   question: string,
-  documentId: string
+  documentId: string,
+  documentTitle?: string
 ): Promise<RAGResult> {
 
   // PASO 1: Convertir la pregunta en un vector
@@ -78,8 +79,13 @@ Categoría:`
   let answer: string
 
   if (asksForWebSearch) {
-    // Pregunta que necesita info externa — Compound Mini busca en internet
-    const prompt = `Sos archiChat. El usuario pregunta sobre precios o información de internet.
+    // Incluimos contexto del documento para que sepa de qué está hablando el usuario
+    const docContext = documentTitle
+      ? `El usuario está viendo un documento llamado "${documentTitle}". Contexto relevante: ${relevantChunks[0]?.content?.slice(0, 300) ?? ''}`
+      : ''
+
+    const prompt = `Sos archiChat. El usuario pide información de internet.
+${docContext}
 Buscá en la web la información actualizada y respondé en español con datos reales.
 
 PREGUNTA: ${question}
