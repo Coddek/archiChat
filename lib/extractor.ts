@@ -6,13 +6,49 @@
 
 import * as cheerio from 'cheerio'
 
+// Umbral mínimo para considerar que unpdf extrajo texto real.
+// Si está por debajo, el PDF probablemente es una imagen escaneada.
+const MIN_PDF_TEXT_LENGTH = 100
+
 export async function extractFromPDF(buffer: Buffer): Promise<string> {
-  // unpdf está diseñado para funcionar en entornos serverless y Next.js App Router
-  // Recibe un ArrayBuffer y devuelve el texto plano del PDF
+  // INTENTO 1: unpdf — extrae texto de PDFs con texto digital
   const { extractText } = await import('unpdf')
   const arrayBuffer = buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer
   const { text } = await extractText(new Uint8Array(arrayBuffer), { mergePages: true })
-  return text
+
+  if (text && text.trim().length >= MIN_PDF_TEXT_LENGTH) {
+    return text
+  }
+
+  // INTENTO 2: Gemini Vision — OCR para PDFs que son imágenes escaneadas
+  // Gemini puede "ver" el contenido de imágenes y extraer el texto
+  // Usamos la misma API key que ya tenemos configurada
+  console.log('PDF sin texto suficiente, usando Gemini Vision para OCR...')
+
+  const { GoogleGenerativeAI } = await import('@google/generative-ai')
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+
+  // Convertimos el buffer a base64 para mandárselo a Gemini
+  const base64 = buffer.toString('base64')
+
+  const result = await model.generateContent([
+    {
+      inlineData: {
+        mimeType: 'application/pdf',
+        data: base64,
+      },
+    },
+    'Extraé todo el texto de este documento. Devolvé únicamente el texto, sin comentarios ni explicaciones.',
+  ])
+
+  const extracted = result.response.text()
+
+  if (!extracted || extracted.trim().length < MIN_PDF_TEXT_LENGTH) {
+    throw new Error('No se pudo extraer texto del PDF. El archivo puede estar corrupto o protegido.')
+  }
+
+  return extracted
 }
 
 export async function extractFromText(text: string): Promise<string> {
