@@ -20,29 +20,34 @@ export async function extractFromPDF(buffer: Buffer): Promise<string> {
     return text
   }
 
-  // INTENTO 2: Gemini Vision — OCR para PDFs que son imágenes escaneadas
-  // Gemini puede "ver" el contenido de imágenes y extraer el texto
-  // Usamos la misma API key que ya tenemos configurada
+  // INTENTO 2: Gemini Vision via REST API — OCR para PDFs que son imágenes escaneadas
+  // Usamos la misma REST API que en lib/ai.ts (sabemos que funciona)
   console.log('PDF sin texto suficiente, usando Gemini Vision para OCR...')
 
-  const { GoogleGenerativeAI } = await import('@google/generative-ai')
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
-  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
-
-  // Convertimos el buffer a base64 para mandárselo a Gemini
   const base64 = buffer.toString('base64')
 
-  const result = await model.generateContent([
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
     {
-      inlineData: {
-        mimeType: 'application/pdf',
-        data: base64,
-      },
-    },
-    'Extraé todo el texto de este documento. Devolvé únicamente el texto, sin comentarios ni explicaciones.',
-  ])
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          parts: [
+            { inline_data: { mime_type: 'application/pdf', data: base64 } },
+            { text: 'Extraé todo el texto de este documento. Devolvé únicamente el texto, sin comentarios ni explicaciones.' },
+          ]
+        }]
+      }),
+    }
+  )
 
-  const extracted = result.response.text()
+  if (!response.ok) {
+    throw new Error(`Gemini Vision falló: ${response.status}`)
+  }
+
+  const data = await response.json()
+  const extracted = data.candidates?.[0]?.content?.parts?.[0]?.text ?? ''
 
   if (!extracted || extracted.trim().length < MIN_PDF_TEXT_LENGTH) {
     throw new Error('No se pudo extraer texto del PDF. El archivo puede estar corrupto o protegido.')
