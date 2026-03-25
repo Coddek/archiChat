@@ -1,33 +1,41 @@
 // lib/ai.ts
 // Dos funciones principales:
-// 1. getEmbedding → convierte texto en vector numérico (Together AI)
+// 1. getEmbedding → convierte texto en vector numérico (Gemini)
 // 2. callAI → genera una respuesta de texto (Groq con fallback a Gemini)
+//
+// Todas las funciones aceptan keys opcionales del usuario.
+// Si no se pasan, usan las variables de entorno del servidor.
 
 import Groq from 'groq-sdk'
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+export interface UserKeys {
+  groq?:   string
+  gemini?: string
+}
 
 // ─── EMBEDDINGS ───────────────────────────────────────────────────────────────
 
 // Convierte un texto en un array de 768 números que representa su significado
-// Usamos Gemini text-embedding-004 via el SDK oficial de Google
-export async function getEmbedding(text: string): Promise<number[]> {
+export async function getEmbedding(text: string, geminiKey?: string): Promise<number[]> {
+  const key = geminiKey || process.env.GEMINI_API_KEY!
   const { GoogleGenerativeAI } = await import('@google/generative-ai')
-  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!)
+  const genAI = new GoogleGenerativeAI(key)
   const model = genAI.getGenerativeModel({ model: 'gemini-embedding-001' })
   const result = await model.embedContent(text)
-  return result.embedding.values // array de 768 números
+  return result.embedding.values
 }
 
 // ─── GENERACIÓN DE TEXTO ──────────────────────────────────────────────────────
 
-// Llama a Groq para generar una respuesta
-// Si Groq falla (rate limit, error), intenta automáticamente con Gemini
-// Esto garantiza que el chat siempre funcione aunque un proveedor falle
-export async function callAI(prompt: string): Promise<string> {
+// Llama a Groq para generar una respuesta.
+// Si Groq falla (rate limit, error), intenta automáticamente con Gemini Flash.
+export async function callAI(prompt: string, keys?: UserKeys): Promise<string> {
+  const groqKey   = keys?.groq   || process.env.GROQ_API_KEY!
+  const geminiKey = keys?.gemini || process.env.GEMINI_API_KEY!
 
   // Intento 1: Groq — más rápido y con buen contexto
   try {
+    const groq = new Groq({ apiKey: groqKey })
     const response = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
       messages: [{ role: 'user', content: prompt }],
@@ -39,10 +47,9 @@ export async function callAI(prompt: string): Promise<string> {
   }
 
   // Intento 2: Gemini Flash — fallback gratuito
-  // Si llegamos acá es porque Groq tuvo algún problema
   try {
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -61,12 +68,13 @@ export async function callAI(prompt: string): Promise<string> {
 
 // ─── GENERACIÓN CON BÚSQUEDA WEB ──────────────────────────────────────────────
 
-// Usa Groq Compound Mini — un modelo que tiene acceso a internet en tiempo real.
-// Él solo decide cuándo buscar en la web y cuándo responder desde su conocimiento.
-// Lo usamos cuando la pregunta no está relacionada al documento activo,
-// así el usuario puede hacer preguntas sobre precios, noticias, comparaciones, etc.
-export async function callAIWithSearch(prompt: string): Promise<string> {
+// Usa Groq Compound Mini — modelo con acceso a internet en tiempo real.
+// Lo usamos cuando la pregunta no está relacionada al documento activo.
+export async function callAIWithSearch(prompt: string, keys?: UserKeys): Promise<string> {
+  const groqKey = keys?.groq || process.env.GROQ_API_KEY!
+
   try {
+    const groq = new Groq({ apiKey: groqKey })
     const response = await groq.chat.completions.create({
       model: 'compound-beta-mini',
       messages: [{ role: 'user', content: prompt }],
@@ -76,6 +84,6 @@ export async function callAIWithSearch(prompt: string): Promise<string> {
   } catch (error) {
     // Si Compound falla, caemos al modelo normal sin búsqueda web
     console.warn('Compound Mini falló, usando Llama sin búsqueda web...', error)
-    return callAI(prompt)
+    return callAI(prompt, keys)
   }
 }

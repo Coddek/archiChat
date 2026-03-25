@@ -19,8 +19,10 @@ import {
   Globe,
   Circle,
   MessageSquare,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
+import { SettingsModal } from "@/components/SettingsModal";
 import { motion, AnimatePresence } from "framer-motion";
 
 type Message = {
@@ -63,7 +65,8 @@ export default function ChatPage() {
   const [loading, setLoading] = useState(false);
   const [isProcessed, setIsProcessed] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen]   = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -371,7 +374,14 @@ export default function ChatPage() {
             <h1 className="font-semibold text-sm text-muted-foreground">Documento no encontrado</h1>
           )}
 
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1">
+            <button
+              onClick={() => setShowSettings(true)}
+              className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all"
+              title="Configuración"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
             <ThemeToggle />
           </div>
         </header>
@@ -478,6 +488,11 @@ export default function ChatPage() {
           </p>
         </div>
       </div>
+
+      <SettingsModal
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+      />
     </div>
   );
 }

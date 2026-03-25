@@ -4,7 +4,22 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { processDocument } from '@/lib/pipeline'
+import { createClient } from '@/lib/supabase/server'
 
+async function getUserKeys() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return {}
+  const { data } = await supabase
+    .from('user_settings')
+    .select('groq_api_key, gemini_api_key')
+    .eq('user_id', user.id)
+    .single()
+  return {
+    groq:   data?.groq_api_key   || undefined,
+    gemini: data?.gemini_api_key || undefined,
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,8 +36,6 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Si es PDF, el content llega como File — lo convertimos a Buffer
-    // Buffer es la representación en memoria de un archivo binario
     let processedContent: string | Buffer
 
     if (sourceType === 'pdf' && content instanceof File) {
@@ -32,11 +45,13 @@ export async function POST(req: NextRequest) {
       processedContent = content as string
     }
 
-    // Disparamos el pipeline — puede tardar varios segundos
+    const keys = await getUserKeys()
+
     const result = await processDocument({
       documentId,
       sourceType,
       content: processedContent,
+      keys,
     })
 
     return NextResponse.json({ success: true, ...result })

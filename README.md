@@ -1,14 +1,12 @@
 # archiChat
 
-Chat inteligente con tus documentos usando RAG (Retrieval-Augmented Generation).
+Chat inteligente con tus documentos potenciado por IA.
 
 ## ¿Qué hace?
 
 Subís un PDF, pegás texto, o ingresás una URL. La app procesa el contenido, lo divide en fragmentos con overlap, genera embeddings semánticos, y te permite chatear con ese material en lenguaje natural.
 
-La IA responde usando el contenido de tu documento y puede complementar con conocimiento general cuando la pregunta no está relacionada al documento.
-
-![archiChat screenshot](./public/screenshot.png)
+La IA responde usando el contenido de tu documento. Si la pregunta no está relacionada al documento, puede responder desde su conocimiento general o buscar información en internet en tiempo real.
 
 ## Stack
 
@@ -17,7 +15,8 @@ La IA responde usando el contenido de tu documento y puede complementar con cono
 | Frontend | Next.js 14 + Tailwind CSS + shadcn/ui |
 | Backend | Next.js API Routes |
 | Base de datos | Supabase (PostgreSQL + pgvector) |
-| IA (chat) | Groq — llama-3.3-70b-versatile (fallback: Gemini Flash) |
+| IA (chat) | Groq — llama-3.3-70b-versatile + compound-beta-mini (búsqueda web) |
+| IA (fallback) | Google Gemini Flash — si Groq falla |
 | IA (embeddings) | Gemini — gemini-embedding-001 |
 | Deploy | Vercel |
 
@@ -34,6 +33,17 @@ Si la similitud entre la pregunta y los chunks es menor a 0.3, la IA responde de
 
 ### Fallback de IAs
 Si Groq falla por rate limit, la app intenta automáticamente con Gemini Flash. Esto garantiza disponibilidad sin costo adicional.
+
+## Características
+
+- Subir documentos PDF, texto plano o URL
+- Chat con streaming token por token
+- Búsqueda semántica con pgvector
+- Búsqueda web en tiempo real para preguntas fuera del documento
+- Sugerencias automáticas de preguntas al abrir un documento
+- Interfaz responsiva con modo claro y oscuro
+- Sistema de confianza por respuesta (muestra qué tan relevantes fueron los fragmentos usados)
+- Cada usuario configura sus propias API keys desde el panel de ajustes
 
 ## Setup local
 
@@ -53,6 +63,7 @@ Si Groq falla por rate limit, la app intenta automáticamente con Gemini Flash. 
 3. Configurar Supabase:
    - Crear proyecto en supabase.com
    - Ejecutar el SQL de `/supabase/schema.sql` en el SQL Editor
+   - Ejecutar el SQL de `/supabase/user_settings.sql` en el SQL Editor
    - Copiar la URL y las keys al `.env.local`
 
 4. Iniciar el servidor:
@@ -74,7 +85,7 @@ Este proyecto fue desarrollado como proyecto final del Curso de IA para Desarrol
 - **Bolt.new**: prototipo inicial de la UI
 - **Claude Code**: implementación del pipeline RAG, embeddings, validaciones y tests
 
-Ver `PROCESO.md` para el detalle completo de prompts y decisiones.
+Ver [PROCESO.md](./PROCESO.md) para el detalle completo de prompts y decisiones.
 
 ## Licencia
 

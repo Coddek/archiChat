@@ -5,6 +5,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { getEmbedding, callAI } from './ai'
+import type { UserKeys } from './ai'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -35,11 +36,12 @@ export interface RagContext {
 export async function prepareRagPrompt(
   question: string,
   documentId: string,
-  documentTitle?: string
+  documentTitle?: string,
+  keys?: UserKeys
 ): Promise<RagContext> {
 
   // PASO 1: Convertir la pregunta en vector
-  const questionEmbedding = await getEmbedding(question)
+  const questionEmbedding = await getEmbedding(question, keys?.gemini)
 
   // PASO 2: Buscar los 4 chunks más similares
   const { data: relevantChunks, error } = await supabase.rpc('match_chunks', {
@@ -71,7 +73,8 @@ export async function prepareRagPrompt(
 - GENERAL: cualquier otra pregunta
 
 Pregunta: "${question}"
-Categoría:`
+Categoría:`,
+    keys
   )
   const intent = intentResponse.trim().toUpperCase()
   const asksForWebSearch = intent.includes('WEB')

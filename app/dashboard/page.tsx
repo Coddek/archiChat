@@ -16,6 +16,7 @@ import {
   LogOut,
   Sparkles,
   FolderOpen,
+  Settings,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { MagicCard } from "@/components/ui/magic-card";
+import { SettingsModal } from "@/components/SettingsModal";
 
 type Document = {
   id: string;
@@ -45,9 +47,24 @@ export default function DashboardPage() {
   const [loading,   setLoading]   = useState(true);
   const [userEmail, setUserEmail] = useState("");
   const [search,    setSearch]    = useState("");
+  const [showSettings,  setShowSettings]  = useState(false);
+  const [isOnboarding,  setIsOnboarding]  = useState(false);
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadData(); }, []);
+
+  // Verificar si el usuario tiene API keys configuradas
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((d) => {
+        if (!d.hasKeys) {
+          setIsOnboarding(true);
+          setShowSettings(true);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   async function loadData() {
     const { data: { user } } = await supabase.auth.getUser();
@@ -107,6 +124,13 @@ export default function DashboardPage() {
           <div className="flex items-center gap-4">
             <span className="text-xs font-medium text-muted-foreground hidden md:block italic">{userEmail}</span>
             <ThemeToggle />
+            <button
+              onClick={() => { setIsOnboarding(false); setShowSettings(true); }}
+              className="w-9 h-9 flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all"
+              title="Configuración"
+            >
+              <Settings className="w-4 h-4" />
+            </button>
             <Button variant="ghost" size="sm" onClick={handleLogout}
               className="text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-xl gap-2 transition-all">
               <LogOut className="w-4 h-4" />
@@ -259,6 +283,13 @@ export default function DashboardPage() {
           )}
         </AnimatePresence>
       </main>
+
+      <SettingsModal
+        open={showSettings}
+        onClose={() => setShowSettings(false)}
+        isOnboarding={isOnboarding}
+        onKeySaved={() => setIsOnboarding(false)}
+      />
     </div>
   );
 }

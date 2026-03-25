@@ -3,22 +3,32 @@
 // como punto de partida cuando abre el chat por primera vez
 
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient as createSupabaseClient } from '@supabase/supabase-js'
+import { createClient } from '@/lib/supabase/server'
 import Groq from 'groq-sdk'
 
-const supabase = createClient(
+const supabase = createSupabaseClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+async function getUserKeys() {
+  const serverSupabase = await createClient()
+  const { data: { user } } = await serverSupabase.auth.getUser()
+  if (!user) return {}
+  const { data } = await serverSupabase
+    .from('user_settings')
+    .select('groq_api_key')
+    .eq('user_id', user.id)
+    .single()
+  return { groq: data?.groq_api_key || undefined }
+}
 
 export async function GET(req: NextRequest) {
   try {
     const documentId = req.nextUrl.searchParams.get('documentId')
     if (!documentId) return NextResponse.json({ questions: [] })
 
-    // Traemos los primeros chunks del documento para entender de qué trata
     const { data: chunks } = await supabase
       .from('chunks')
       .select('content')
@@ -29,6 +39,10 @@ export async function GET(req: NextRequest) {
     if (!chunks || chunks.length === 0) return NextResponse.json({ questions: [] })
 
     const preview = chunks.map(c => c.content).join('\n\n').slice(0, 1500)
+
+    const keys = await getUserKeys()
+    const groqKey = keys.groq || process.env.GROQ_API_KEY!
+    const groq = new Groq({ apiKey: groqKey })
 
     const response = await groq.chat.completions.create({
       model: 'llama-3.3-70b-versatile',
@@ -56,7 +70,6 @@ PREGUNTAS:`
 
     return NextResponse.json({ questions })
   } catch {
-    // Si falla, simplemente no mostramos sugerencias — no es crítico
     return NextResponse.json({ questions: [] })
   }
 }

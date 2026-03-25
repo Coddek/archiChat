@@ -5,9 +5,23 @@
 import { NextRequest } from 'next/server'
 import { prepareRagPrompt } from '@/lib/rag'
 import { MessageSchema } from '@/lib/validations'
+import { createClient } from '@/lib/supabase/server'
 import Groq from 'groq-sdk'
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+async function getUserKeys() {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return {}
+  const { data } = await supabase
+    .from('user_settings')
+    .select('groq_api_key, gemini_api_key')
+    .eq('user_id', user.id)
+    .single()
+  return {
+    groq:   data?.groq_api_key   || undefined,
+    gemini: data?.gemini_api_key || undefined,
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,11 +41,14 @@ export async function POST(req: NextRequest) {
       )
     }
 
+    const keys = await getUserKeys()
+    const groqApiKey = keys.groq || process.env.GROQ_API_KEY!
+    const groq = new Groq({ apiKey: groqApiKey })
     const encoder = new TextEncoder()
 
     // ── Caso RAG: documento procesado ─────────────────────────────────────────
     if (isProcessed && documentId) {
-      const context = await prepareRagPrompt(lastQuestion, documentId, documentTitle)
+      const context = await prepareRagPrompt(lastQuestion, documentId, documentTitle, keys)
 
       const groqStream = await groq.chat.completions.create({
         model: context.model,
@@ -52,7 +69,6 @@ export async function POST(req: NextRequest) {
                 ))
               }
             }
-            // Al terminar mandamos las fuentes y confianza
             controller.enqueue(encoder.encode(
               `data: ${JSON.stringify({ type: 'done', sources: context.sources, confidence: context.confidence })}\n\n`
             ))
