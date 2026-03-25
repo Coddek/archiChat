@@ -6,10 +6,9 @@ import remarkGfm from "remark-gfm";
 import { motion, AnimatePresence } from "framer-motion";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { 
-  ChevronDown, 
-  ChevronUp, 
-  FileText, 
+import {
+  ChevronUp,
+  FileText,
   Sparkles, 
   User, 
   Copy, 
@@ -95,7 +94,7 @@ function SourceCards({ sources }: { sources: Source[] }) {
                   </Badge>
                 </div>
                 <p className="text-muted-foreground leading-relaxed italic border-l-2 border-primary/30 pl-4 py-1">
-                  "{s.content}"
+                  &ldquo;{s.content}&rdquo;
                 </p>
               </div>
             ))}

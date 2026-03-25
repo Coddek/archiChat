@@ -16,6 +16,7 @@ import {
   LogOut,
   Sparkles,
   FolderOpen,
+  type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,7 +32,7 @@ type Document = {
   created_at: string;
 };
 
-const typeConfig: Record<string, { icon: any; label: string; color: string; bg: string }> = {
+const typeConfig: Record<string, { icon: LucideIcon; label: string; color: string; bg: string }> = {
   pdf:  { icon: BookOpen, label: "PDF",      color: "text-red-400",     bg: "bg-red-500/10"     },
   text: { icon: PenLine,  label: "Texto",    color: "text-blue-400",    bg: "bg-blue-500/10"    },
   url:  { icon: Globe,    label: "Sitio Web",color: "text-emerald-400", bg: "bg-emerald-500/10" },
@@ -45,6 +46,7 @@ export default function DashboardPage() {
   const [userEmail, setUserEmail] = useState("");
   const [search,    setSearch]    = useState("");
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadData(); }, []);
 
   async function loadData() {

@@ -19,6 +19,7 @@ import {
   Globe,
   Circle,
   MessageSquare,
+  type LucideIcon,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -37,7 +38,7 @@ type Document = {
   source_type: string;
 };
 
-const typeIcon: Record<string, any> = {
+const typeIcon: Record<string, LucideIcon> = {
   pdf:  BookOpen,
   text: PenLine,
   url:  Globe,
@@ -66,6 +67,7 @@ export default function ChatPage() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadDocuments(); }, []);
   useEffect(() => { setSidebarOpen(window.innerWidth >= 768); }, []);
 
@@ -92,6 +94,7 @@ export default function ChatPage() {
     }, 3000);
 
     return () => clearInterval(interval);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isProcessed, documentId]);
 
   useEffect(() => {

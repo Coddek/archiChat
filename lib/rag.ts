@@ -17,6 +17,12 @@ export type Source = {
   similarity: number
 }
 
+type Chunk = {
+  content: string
+  chunk_index: number
+  similarity: number
+}
+
 // Lo que devuelve prepareRagPrompt — todo lo necesario para que el route
 // pueda hacer el streaming sin lógica adicional
 export interface RagContext {
@@ -54,7 +60,7 @@ export async function prepareRagPrompt(
   }
 
   // PASO 3: Calcular similitud máxima para saber si la pregunta es relevante al doc
-  const maxSimilarity = Math.max(...relevantChunks.map((c: any) => c.similarity))
+  const maxSimilarity = Math.max(...relevantChunks.map((c: Chunk) => c.similarity))
   const isRelevantToDoc = maxSimilarity > 0.3
 
   // PASO 4: Detectar intención — ¿el usuario quiere buscar en internet?
@@ -71,7 +77,7 @@ Categoría:`
   const asksForWebSearch = intent.includes('WEB')
 
   // Armamos los sources para mostrarle al usuario qué fragmentos se usaron
-  const sources: Source[] = relevantChunks.map((chunk: any) => ({
+  const sources: Source[] = relevantChunks.map((chunk: Chunk) => ({
     content: chunk.content.slice(0, 300),
     chunk_index: chunk.chunk_index,
     similarity: Math.round(chunk.similarity * 100),
@@ -100,7 +106,7 @@ RESPUESTA:`,
 
   if (isRelevantToDoc) {
     const context = relevantChunks
-      .map((chunk: any, i: number) => `[Fragmento ${i + 1}]:\n${chunk.content}`)
+      .map((chunk: Chunk, i: number) => `[Fragmento ${i + 1}]:\n${chunk.content}`)
       .join('\n\n---\n\n')
 
     return {

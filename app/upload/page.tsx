@@ -22,6 +22,7 @@ import {
   UploadCloud,
   AlertTriangle,
   RotateCcw,
+  type LucideIcon,
 } from "lucide-react";
 
 type SourceType = "pdf" | "text" | "url";
@@ -31,7 +32,7 @@ const PROCESSING_TIMEOUT = 3 * 60 * 1000;
 
 const sources: {
   type: SourceType;
-  icon: any;
+  icon: LucideIcon;
   title: string;
   desc: string;
   color: string;
