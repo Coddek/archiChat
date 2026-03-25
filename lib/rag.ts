@@ -1,38 +1,41 @@
 // lib/rag.ts
-// El corazón del sistema RAG:
-// recibe una pregunta, busca los fragmentos relevantes del documento,
-// y genera una respuesta basada ÚNICAMENTE en esos fragmentos
+// Prepara el contexto RAG para una pregunta:
+// embed → buscar chunks → detectar intención → armar prompt
+// La llamada a la IA la hace el route con streaming
 
 import { createClient } from '@supabase/supabase-js'
-import { getEmbedding, callAI, callAIWithSearch } from './ai'
+import { getEmbedding, callAI } from './ai'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-interface RAGResult {
-  answer: string
-  sources: Array<{
-    content: string
-    chunk_index: number
-    similarity: number
-  }>
+export type Source = {
+  content: string
+  chunk_index: number
+  similarity: number
 }
 
-export async function ragQuery(
+// Lo que devuelve prepareRagPrompt — todo lo necesario para que el route
+// pueda hacer el streaming sin lógica adicional
+export interface RagContext {
+  prompt: string
+  model: string
+  sources: Source[]
+  confidence: number | null  // null si la pregunta no es sobre el doc
+}
+
+export async function prepareRagPrompt(
   question: string,
   documentId: string,
   documentTitle?: string
-): Promise<RAGResult> {
+): Promise<RagContext> {
 
-  // PASO 1: Convertir la pregunta en un vector
-  // La misma lógica que usamos para los chunks — así podemos comparar
+  // PASO 1: Convertir la pregunta en vector
   const questionEmbedding = await getEmbedding(question)
 
-  // PASO 2: Buscar los 4 chunks más similares en Supabase
-  // match_chunks compara el vector de la pregunta contra todos los chunks
-  // del documento y devuelve los más cercanos semánticamente
+  // PASO 2: Buscar los 4 chunks más similares
   const { data: relevantChunks, error } = await supabase.rpc('match_chunks', {
     query_embedding: questionEmbedding,
     match_document_id: documentId,
@@ -41,28 +44,20 @@ export async function ragQuery(
 
   if (error) throw error
 
-  // Si no encontró nada relevante, avisamos sin inventar
   if (!relevantChunks || relevantChunks.length === 0) {
     return {
-      answer: 'No encontré información relevante en el documento para responder esa pregunta.',
+      prompt: `El usuario preguntó: "${question}". No hay fragmentos relevantes en el documento. Respondé en español diciendo que no encontraste información sobre eso en el documento.`,
+      model: 'llama-3.3-70b-versatile',
       sources: [],
+      confidence: null,
     }
   }
 
-  // PASO 3: Armar el contexto con los chunks encontrados
-  // Los numeramos para que la IA pueda referenciarlos
-  const context = relevantChunks
-    .map((chunk: any, i: number) => `[Fragmento ${i + 1}]:\n${chunk.content}`)
-    .join('\n\n---\n\n')
-
-  // Calculamos la similitud máxima encontrada
-  // Si es muy baja, la pregunta probablemente no tiene que ver con el documento
+  // PASO 3: Calcular similitud máxima para saber si la pregunta es relevante al doc
   const maxSimilarity = Math.max(...relevantChunks.map((c: any) => c.similarity))
   const isRelevantToDoc = maxSimilarity > 0.3
 
-  // Detectamos si la pregunta requiere información de internet usando la propia IA.
-  // Le preguntamos a Llama (rápido y gratis) que clasifique la intención.
-  // Así no dependemos de keywords hardcodeadas — entiende lenguaje natural.
+  // PASO 4: Detectar intención — ¿el usuario quiere buscar en internet?
   const intentResponse = await callAI(
     `Clasificá la siguiente pregunta en UNA de estas categorías. Respondé SOLO con la palabra, sin explicación:
 - WEB: si el usuario pide buscar en internet, comparar precios, ver otros sitios, info actual, o dice "buscá", "googleá", "chequeá online", etc.
@@ -75,27 +70,41 @@ Categoría:`
   const intent = intentResponse.trim().toUpperCase()
   const asksForWebSearch = intent.includes('WEB')
 
-  // PASO 4: Construir el prompt y elegir el modelo según el tipo de pregunta
-  let answer: string
+  // Armamos los sources para mostrarle al usuario qué fragmentos se usaron
+  const sources: Source[] = relevantChunks.map((chunk: any) => ({
+    content: chunk.content.slice(0, 300),
+    chunk_index: chunk.chunk_index,
+    similarity: Math.round(chunk.similarity * 100),
+  }))
+
+  // PASO 5: Elegir prompt y modelo según la intención detectada
 
   if (asksForWebSearch) {
-    // Incluimos contexto del documento para que sepa de qué está hablando el usuario
     const docContext = documentTitle
       ? `El usuario está viendo un documento llamado "${documentTitle}". Contexto relevante: ${relevantChunks[0]?.content?.slice(0, 300) ?? ''}`
       : ''
 
-    const prompt = `Sos archiChat. El usuario pide información de internet.
+    return {
+      prompt: `Sos archiChat. El usuario pide información de internet.
 ${docContext}
 Buscá en la web la información actualizada y respondé en español con datos reales.
 
 PREGUNTA: ${question}
 
-RESPUESTA:`
-    answer = await callAIWithSearch(prompt)
+RESPUESTA:`,
+      model: 'compound-beta-mini',
+      sources,
+      confidence: null,
+    }
+  }
 
-  } else if (isRelevantToDoc) {
-    // Pregunta sobre el documento — usamos RAG con contexto
-    const prompt = `Sos archiChat, un asistente inteligente para analizar documentos.
+  if (isRelevantToDoc) {
+    const context = relevantChunks
+      .map((chunk: any, i: number) => `[Fragmento ${i + 1}]:\n${chunk.content}`)
+      .join('\n\n---\n\n')
+
+    return {
+      prompt: `Sos archiChat, un asistente inteligente para analizar documentos.
 Respondé la siguiente pregunta usando principalmente la información del contexto del documento.
 Podés complementar con tu conocimiento general si es necesario, pero priorizá el contenido del documento.
 Respondé en español, de forma clara y directa. Usá markdown para formatear si ayuda a la claridad.
@@ -105,29 +114,23 @@ ${context}
 
 PREGUNTA: ${question}
 
-RESPUESTA:`
-    answer = await callAI(prompt)
+RESPUESTA:`,
+      model: 'llama-3.3-70b-versatile',
+      sources,
+      confidence: Math.round(maxSimilarity * 100),
+    }
+  }
 
-  } else {
-    // Pregunta general — Compound Mini responde con conocimiento general y web si hace falta
-    const prompt = `Sos archiChat, un asistente inteligente.
+  // Pregunta general — usa compound para web search automático si hace falta
+  return {
+    prompt: `Sos archiChat, un asistente inteligente.
 Respondé la siguiente pregunta en español, de forma clara, directa y útil.
 
 PREGUNTA: ${question}
 
-RESPUESTA:`
-    answer = await callAIWithSearch(prompt)
-  }
-
-  // PASO 6: Devolver la respuesta + las fuentes usadas
-  // Las fuentes le muestran al usuario qué fragmentos del documento usó la IA
-  // Eso genera confianza — el usuario puede verificar la respuesta
-  return {
-    answer,
-    sources: relevantChunks.map((chunk: any) => ({
-      content: chunk.content.slice(0, 200) + '...',
-      chunk_index: chunk.chunk_index,
-      similarity: Math.round(chunk.similarity * 100),
-    })),
+RESPUESTA:`,
+    model: 'compound-beta-mini',
+    sources,
+    confidence: null,
   }
 }

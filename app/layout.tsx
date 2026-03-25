@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import { BackgroundEnv } from "@/components/ui/backgroundEnv";
+import { Providers } from "@/components/providers";
 
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
@@ -15,8 +17,8 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "archiChat — Chateá con tus documentos",
-  description: "Subí PDFs, texto o URLs y chateá con ellos usando IA.",
+  title: "archiChat — Tu Segunda Mente",
+  description: "Análisis inteligente de documentos con RAG de alta precisión.",
 };
 
 export default function RootLayout({
@@ -25,10 +27,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className="dark">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased font-[var(--font-geist-sans)]`}>
-        {children}
-        <Toaster richColors position="top-right" />
+    <html lang="es" suppressHydrationWarning>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased font-[var(--font-geist-sans)] bg-background text-foreground selection:bg-primary/30`}
+      >
+        <Providers>
+          <BackgroundEnv />
+          <main className="relative min-h-screen flex flex-col z-10">
+            {children}
+          </main>
+          <Toaster richColors position="top-right" closeButton />
+        </Providers>
       </body>
     </html>
   );

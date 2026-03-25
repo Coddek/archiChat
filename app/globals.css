@@ -1,94 +1,118 @@
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
+/* Animación para BorderBeam — el ángulo del conic-gradient */
+@property --beam-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@keyframes beam-spin {
+  to { --beam-angle: 360deg; }
+}
+
+@layer base {
+  /* ── LIGHT MODE — Lavender suave, misma onda que dark ───── */
+  :root {
+    --background: 244 35% 96%;      /* lavanda muy claro #f1f0fb */
+    --foreground: 240 20% 10%;
+    --card: 250 50% 99%;            /* blanco con tinte violeta #fdfcff */
+    --card-foreground: 240 20% 10%;
+    --popover: 250 50% 99%;
+    --popover-foreground: 240 20% 10%;
+    --primary: 263.4 70% 50.4%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 244 25% 92%;
+    --secondary-foreground: 240 15% 15%;
+    --muted: 244 25% 92%;
+    --muted-foreground: 240 10% 44%;
+    --accent: 244 25% 92%;
+    --accent-foreground: 240 15% 15%;
+    --destructive: 0 84.2% 60.2%;
+    --border: 244 20% 86%;
+    --input: 244 25% 90%;
+    --ring: 263.4 70% 50.4%;
+    --radius: 0.75rem;
+  }
+
+  /* ── DARK MODE — Deep Indigo-Black ─────────────────────── */
+  .dark {
+    --background: 238 45% 5%;       /* #07071a */
+    --foreground: 240 15% 93%;
+    --card: 240 38% 8%;             /* #0d0d22 */
+    --card-foreground: 240 15% 93%;
+    --popover: 240 38% 8%;
+    --popover-foreground: 240 15% 93%;
+    --primary: 263.4 70% 55%;       /* violet un poco más brillante en dark */
+    --primary-foreground: 210 40% 98%;
+    --secondary: 240 28% 13%;
+    --secondary-foreground: 240 15% 93%;
+    --muted: 240 28% 13%;
+    --muted-foreground: 240 12% 52%;
+    --accent: 240 28% 13%;
+    --accent-foreground: 240 15% 93%;
+    --destructive: 0 62.8% 30.6%;
+    --border: 240 22% 16%;
+    --input: 240 28% 12%;
+    --ring: 263.4 70% 55%;
   }
 }
 
 @layer base {
-  .theme {
-    --font-heading: var(--font-sans);
-    --font-sans: var(--font-sans);
-  }
-  :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.708 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.708 0 0);
-  }
-  .dark {
-    --background: oklch(0.145 0 0);
-    --foreground: oklch(0.985 0 0);
-    --card: oklch(0.205 0 0);
-    --card-foreground: oklch(0.985 0 0);
-    --popover: oklch(0.205 0 0);
-    --popover-foreground: oklch(0.985 0 0);
-    --primary: oklch(0.922 0 0);
-    --primary-foreground: oklch(0.205 0 0);
-    --secondary: oklch(0.269 0 0);
-    --secondary-foreground: oklch(0.985 0 0);
-    --muted: oklch(0.269 0 0);
-    --muted-foreground: oklch(0.708 0 0);
-    --accent: oklch(0.269 0 0);
-    --accent-foreground: oklch(0.985 0 0);
-    --destructive: oklch(0.704 0.191 22.216);
-    --border: oklch(1 0 0 / 10%);
-    --input: oklch(1 0 0 / 15%);
-    --ring: oklch(0.556 0 0);
-    --chart-1: oklch(0.87 0 0);
-    --chart-2: oklch(0.556 0 0);
-    --chart-3: oklch(0.439 0 0);
-    --chart-4: oklch(0.371 0 0);
-    --chart-5: oklch(0.269 0 0);
-    --sidebar: oklch(0.205 0 0);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.269 0 0);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.556 0 0);
-  }
   * {
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground antialiased;
   }
-  html {
-    @apply font-sans;
+
+  /*
+   * Transición de tema siempre activa.
+   * Se aplica a TODOS los elementos que no tengan una clase transition-* de Tailwind.
+   * Los que sí tienen (botones, cards con hover, etc.) usan su propia duración
+   * porque @layer utilities tiene mayor especificidad y la overridea.
+   * Resultado: tema suave, hovers sin lag.
+   */
+  *, *::before, *::after {
+    transition-property: background-color, border-color, box-shadow;
+    transition-timing-function: ease;
+    transition-duration: 0.3s;
   }
+}
+
+/* ── Meteor Animation ──────────────────────────────────── */
+@keyframes meteor {
+  0%   { transform: rotate(215deg) translateX(0);      opacity: 1; }
+  70%  {                                               opacity: 1; }
+  100% { transform: rotate(215deg) translateX(-600px); opacity: 0; }
+}
+
+/* ── Orbe Animations ───────────────────────────────────── */
+@keyframes float-slow {
+  0%, 100% { transform: translate(0px, 0px) scale(1); }
+  33%       { transform: translate(30px, -50px) scale(1.1); }
+  66%       { transform: translate(-20px, 20px) scale(0.9); }
+}
+
+@keyframes float-slow-rev {
+  0%, 100% { transform: translate(0px, 0px) scale(1); }
+  33%       { transform: translate(-40px, 30px) scale(0.95); }
+  66%       { transform: translate(25px, -25px) scale(1.05); }
+}
+
+.orb-1 { animation: float-slow 15s ease-in-out infinite; }
+.orb-2 { animation: float-slow-rev 20s ease-in-out infinite; }
+.orb-3 { animation: float-slow 25s ease-in-out infinite 2s; }
+
+/* ── Scrollbar ─────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  @apply rounded-full border-2 border-transparent bg-clip-content;
+  background-color: hsl(var(--border));
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.4);
 }

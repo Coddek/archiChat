@@ -68,7 +68,7 @@ export async function callAI(prompt: string): Promise<string> {
 export async function callAIWithSearch(prompt: string): Promise<string> {
   try {
     const response = await groq.chat.completions.create({
-      model: 'groq/compound-mini',
+      model: 'compound-beta-mini',
       messages: [{ role: 'user', content: prompt }],
       max_tokens: 1024,
     })

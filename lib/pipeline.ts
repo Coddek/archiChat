@@ -53,7 +53,7 @@ export async function processDocument({ documentId, sourceType, content }: Proce
       await new Promise(resolve => setTimeout(resolve, 1000))
     }
 
-    // Convertimos el texto del chunk en un vector de 3072 números
+    // Convertimos el texto del chunk en un vector de 3072 dimensiones
     const embedding = await getEmbedding(chunks[i])
 
     // Guardamos el chunk + su vector en la tabla "chunks"
