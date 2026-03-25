@@ -63,14 +63,11 @@ export default function ChatPage() {
   const [isProcessed, setIsProcessed] = useState(false);
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  useEffect(() => {
-    setSidebarOpen(window.innerWidth >= 768);
-  }, []);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => { loadDocuments(); }, []);
+  useEffect(() => { setSidebarOpen(window.innerWidth >= 768); }, []);
 
   useEffect(() => {
     if (isProcessed) return;
