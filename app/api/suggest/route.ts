@@ -5,7 +5,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
-import Groq from 'groq-sdk'
+import { callAI } from '@/lib/ai'
+import { MODELS } from '@/lib/models'
 
 const supabase = createSupabaseClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,10 +19,13 @@ async function getUserKeys() {
   if (!user) return {}
   const { data } = await serverSupabase
     .from('user_settings')
-    .select('groq_api_key')
+    .select('groq_api_key, gemini_api_key')
     .eq('user_id', user.id)
     .single()
-  return { groq: data?.groq_api_key || undefined }
+  return {
+    groq:   data?.groq_api_key   || undefined,
+    gemini: data?.gemini_api_key || undefined,
+  }
 }
 
 export async function GET(req: NextRequest) {
@@ -41,27 +45,21 @@ export async function GET(req: NextRequest) {
     const preview = chunks.map(c => c.content).join('\n\n').slice(0, 1500)
 
     const keys = await getUserKeys()
-    const groqKey = keys.groq || process.env.GROQ_API_KEY!
-    const groq = new Groq({ apiKey: groqKey })
 
-    const response = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      messages: [{
-        role: 'user',
-        content: `Dado este fragmento de un documento, generá exactamente 3 preguntas cortas y específicas que un usuario podría hacerle a una IA sobre este contenido.
+    // callAI ya incluye el fallback a Gemini si Groq falla
+    const raw = await callAI(
+      `Dado este fragmento de un documento, generá exactamente 3 preguntas cortas y específicas que un usuario podría hacerle a una IA sobre este contenido.
 Las preguntas deben ser concretas, útiles, y directamente respondibles con el texto.
 Respondé SOLO con las 3 preguntas, una por línea, sin numeración ni viñetas ni guiones.
 
 FRAGMENTO:
 ${preview}
 
-PREGUNTAS:`
-      }],
-      max_tokens: 200,
-      temperature: 0.7,
-    })
+PREGUNTAS:`,
+      keys,
+      MODELS.groqFast
+    )
 
-    const raw = response.choices[0].message.content ?? ''
     const questions = raw
       .split('\n')
       .map(q => q.replace(/^[-•*\d.)\s]+/, '').trim())

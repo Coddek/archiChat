@@ -4,9 +4,10 @@
 
 import { NextRequest } from 'next/server'
 import { prepareRagPrompt } from '@/lib/rag'
+import type { Source } from '@/lib/rag'
 import { MessageSchema } from '@/lib/validations'
 import { createClient } from '@/lib/supabase/server'
-import Groq from 'groq-sdk'
+import { streamAnswer } from '@/lib/ai'
 
 async function getUserKeys() {
   const supabase = await createClient()
@@ -21,6 +22,43 @@ async function getUserKeys() {
     groq:   data?.groq_api_key   || undefined,
     gemini: data?.gemini_api_key || undefined,
   }
+}
+
+// Convierte el stream de texto en eventos SSE: 'chunk' por cada pedazo y 'done' al final.
+// Espera el primer pedazo antes de responder: si todos los proveedores fallan,
+// el error sale como JSON 500 (lo que el cliente espera) y no como un stream vacío.
+async function sseResponse(
+  answer: AsyncGenerator<string>,
+  meta: { sources: Source[]; confidence: number | null }
+) {
+  const encoder = new TextEncoder()
+  const send = (data: object) => encoder.encode(`data: ${JSON.stringify(data)}
+
+`)
+  const first = await answer.next()
+
+  const readable = new ReadableStream({
+    async start(controller) {
+      try {
+        if (!first.done) controller.enqueue(send({ type: 'chunk', content: first.value }))
+        for await (const text of answer) {
+          controller.enqueue(send({ type: 'chunk', content: text }))
+        }
+      } catch (error) {
+        console.error('Error a mitad del stream:', error)
+      } finally {
+        controller.enqueue(send({ type: 'done', ...meta }))
+        controller.close()
+      }
+    }
+  })
+
+  return new Response(readable, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+    }
+  })
 }
 
 export async function POST(req: NextRequest) {
@@ -42,48 +80,14 @@ export async function POST(req: NextRequest) {
     }
 
     const keys = await getUserKeys()
-    const groqApiKey = keys.groq || process.env.GROQ_API_KEY!
-    const groq = new Groq({ apiKey: groqApiKey })
-    const encoder = new TextEncoder()
 
     // ── Caso RAG: documento procesado ─────────────────────────────────────────
     if (isProcessed && documentId) {
       const context = await prepareRagPrompt(lastQuestion, documentId, documentTitle, keys)
-
-      const groqStream = await groq.chat.completions.create({
-        model: context.model,
-        messages: [{ role: 'user', content: context.prompt }],
-        stream: true,
-        max_tokens: 1024,
-        temperature: 0.7,
-      })
-
-      const readable = new ReadableStream({
-        async start(controller) {
-          try {
-            for await (const chunk of groqStream) {
-              const text = chunk.choices[0]?.delta?.content || ''
-              if (text) {
-                controller.enqueue(encoder.encode(
-                  `data: ${JSON.stringify({ type: 'chunk', content: text })}\n\n`
-                ))
-              }
-            }
-            controller.enqueue(encoder.encode(
-              `data: ${JSON.stringify({ type: 'done', sources: context.sources, confidence: context.confidence })}\n\n`
-            ))
-          } finally {
-            controller.close()
-          }
-        }
-      })
-
-      return new Response(readable, {
-        headers: {
-          'Content-Type': 'text/event-stream',
-          'Cache-Control': 'no-cache',
-        }
-      })
+      return await sseResponse(
+        streamAnswer([{ role: 'user', content: context.prompt }], context.mode, keys),
+        { sources: context.sources, confidence: context.confidence }
+      )
     }
 
     // ── Caso genérico: documento todavía procesando ────────────────────────────
@@ -92,43 +96,10 @@ ${documentTitle ? `El documento activo se llama "${documentTitle}".` : ''}
 El documento todavía está siendo procesado. Respondé preguntas generales mientras tanto.
 Respondé en español, de forma directa y concisa. Sin listas innecesarias.`
 
-    const groqStream = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        ...messages,
-      ],
-      stream: true,
-      max_tokens: 1024,
-      temperature: 0.7,
-    })
-
-    const readable = new ReadableStream({
-      async start(controller) {
-        try {
-          for await (const chunk of groqStream) {
-            const text = chunk.choices[0]?.delta?.content || ''
-            if (text) {
-              controller.enqueue(encoder.encode(
-                `data: ${JSON.stringify({ type: 'chunk', content: text })}\n\n`
-              ))
-            }
-          }
-          controller.enqueue(encoder.encode(
-            `data: ${JSON.stringify({ type: 'done', sources: [], confidence: null })}\n\n`
-          ))
-        } finally {
-          controller.close()
-        }
-      }
-    })
-
-    return new Response(readable, {
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-      }
-    })
+    return await sseResponse(
+      streamAnswer([{ role: 'system', content: systemPrompt }, ...messages], 'doc', keys),
+      { sources: [], confidence: null }
+    )
 
   } catch (error: unknown) {
     console.error('Error en chat:', error)

@@ -5,7 +5,8 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { getEmbedding, callAI } from './ai'
-import type { UserKeys } from './ai'
+import type { UserKeys, AnswerMode } from './ai'
+import { MODELS } from './models'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,7 +29,7 @@ type Chunk = {
 // pueda hacer el streaming sin lógica adicional
 export interface RagContext {
   prompt: string
-  model: string
+  mode: AnswerMode
   sources: Source[]
   confidence: number | null  // null si la pregunta no es sobre el doc
 }
@@ -55,7 +56,7 @@ export async function prepareRagPrompt(
   if (!relevantChunks || relevantChunks.length === 0) {
     return {
       prompt: `El usuario preguntó: "${question}". No hay fragmentos relevantes en el documento. Respondé en español diciendo que no encontraste información sobre eso en el documento.`,
-      model: 'llama-3.3-70b-versatile',
+      mode: 'doc',
       sources: [],
       confidence: null,
     }
@@ -74,7 +75,8 @@ export async function prepareRagPrompt(
 
 Pregunta: "${question}"
 Categoría:`,
-    keys
+    keys,
+    MODELS.groqFast
   )
   const intent = intentResponse.trim().toUpperCase()
   const asksForWebSearch = intent.includes('WEB')
@@ -101,7 +103,7 @@ Buscá en la web la información actualizada y respondé en español con datos r
 PREGUNTA: ${question}
 
 RESPUESTA:`,
-      model: 'compound-beta-mini',
+      mode: 'web',
       sources,
       confidence: null,
     }
@@ -124,13 +126,13 @@ ${context}
 PREGUNTA: ${question}
 
 RESPUESTA:`,
-      model: 'llama-3.3-70b-versatile',
+      mode: 'doc',
       sources,
       confidence: Math.round(maxSimilarity * 100),
     }
   }
 
-  // Pregunta general — usa compound para web search automático si hace falta
+  // Pregunta general — modo web: el modelo decide si hace falta buscar en internet
   return {
     prompt: `Sos archiChat, un asistente inteligente.
 Respondé la siguiente pregunta en español, de forma clara, directa y útil.
@@ -138,7 +140,7 @@ Respondé la siguiente pregunta en español, de forma clara, directa y útil.
 PREGUNTA: ${question}
 
 RESPUESTA:`,
-    model: 'compound-beta-mini',
+    mode: 'web',
     sources,
     confidence: null,
   }

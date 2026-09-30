@@ -5,6 +5,7 @@
 // sin importar si la fuente es un PDF, texto directo o una página web
 
 import * as cheerio from 'cheerio'
+import { MODELS } from './models'
 
 // Umbral mínimo para considerar que unpdf extrajo texto real.
 // Si está por debajo, el PDF probablemente es una imagen escaneada.
@@ -27,7 +28,7 @@ export async function extractFromPDF(buffer: Buffer): Promise<string> {
   const base64 = buffer.toString('base64')
 
   const response = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODELS.geminiVision}:generateContent?key=${process.env.GEMINI_API_KEY}`,
     {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
