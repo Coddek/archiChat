@@ -54,11 +54,12 @@ export default function DashboardPage() {
   useEffect(() => { loadData(); }, []);
 
   // Verificar si el usuario tiene API keys configuradas
+  // Solo abre el onboarding si no hay keys del usuario NI del servidor
   useEffect(() => {
     fetch("/api/settings")
       .then((r) => r.json())
       .then((d) => {
-        if (!d.hasKeys) {
+        if (!d.hasKeys && !d.hasServerKeys) {
           setIsOnboarding(true);
           setShowSettings(true);
         }

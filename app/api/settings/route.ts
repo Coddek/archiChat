@@ -16,10 +16,15 @@ export async function GET() {
     .eq('user_id', user.id)
     .single()
 
+  // hasServerKeys: el desarrollador tiene sus propias keys en Vercel
+  // → si es true, los usuarios no necesitan configurar nada
+  const hasServerKeys = !!(process.env.GROQ_API_KEY && process.env.GEMINI_API_KEY)
+
   return NextResponse.json({
     hasGroqKey:   !!(data?.groq_api_key),
     hasGeminiKey: !!(data?.gemini_api_key),
-    hasKeys:      !!(data?.groq_api_key && data?.gemini_api_key),
+    hasKeys:      !!(data?.groq_api_key && data?.gemini_api_key) || hasServerKeys,
+    hasServerKeys,
   })
 }
 

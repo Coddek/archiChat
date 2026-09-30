@@ -27,6 +27,13 @@ interface SettingsModalProps {
   onKeySaved?: () => void;
 }
 
+interface SettingsData {
+  hasGroqKey: boolean;
+  hasGeminiKey: boolean;
+  hasKeys: boolean;
+  hasServerKeys: boolean;
+}
+
 // Instrucciones paso a paso para cada servicio
 const GROQ_STEPS = [
   "Abrí la Groq Console con el botón de abajo",
@@ -203,18 +210,20 @@ export function SettingsModal({
   const [step, setStep]           = useState(0);
   const [groqKey, setGroqKey]     = useState("");
   const [geminiKey, setGeminiKey] = useState("");
-  const [saving, setSaving]       = useState(false);
+  const [saving, setSaving]           = useState(false);
   const [savedGroq, setSavedGroq]     = useState(false);
   const [savedGemini, setSavedGemini] = useState(false);
-  const [errors, setErrors]       = useState({ groq: false, gemini: false });
+  const [hasServerKeys, setHasServerKeys] = useState(false);
+  const [errors, setErrors]           = useState({ groq: false, gemini: false });
 
   useEffect(() => {
     if (!open) { setStep(0); setErrors({ groq: false, gemini: false }); return; }
     fetch("/api/settings")
       .then((r) => r.json())
-      .then((d) => {
+      .then((d: SettingsData) => {
         setSavedGroq(!!d.hasGroqKey);
         setSavedGemini(!!d.hasGeminiKey);
+        setHasServerKeys(!!d.hasServerKeys);
       })
       .catch(() => {});
   }, [open]);
@@ -518,11 +527,20 @@ export function SettingsModal({
                       exit={{ opacity: 0 }}
                       className="space-y-4"
                     >
-                      {(savedGroq && savedGemini) && (
+                      {hasServerKeys && !savedGroq && !savedGemini && (
+                        <div className="flex items-start gap-3 rounded-2xl bg-primary/5 border border-primary/15 px-4 py-3">
+                          <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                          <p className="text-xs text-foreground/80 leading-relaxed">
+                            <strong>La app ya funciona sin que configures nada.</strong>{" "}
+                            Podés agregar tus propias claves si querés usar tus propios límites de API, pero no es obligatorio.
+                          </p>
+                        </div>
+                      )}
+                      {(savedGroq || savedGemini) && (
                         <div className="flex items-center gap-2 rounded-2xl bg-emerald-500/8 border border-emerald-500/20 px-4 py-3">
                           <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
                           <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
-                            Claves configuradas. Ingresá nuevos valores para actualizarlas.
+                            Usando tus propias claves. Ingresá nuevos valores para actualizarlas.
                           </p>
                         </div>
                       )}

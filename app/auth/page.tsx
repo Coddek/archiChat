@@ -24,18 +24,18 @@ import { Meteors } from "@/components/ui/meteors";
 const features = [
   {
     icon: <FileText className="w-4 h-4" />,
-    title: "PDF, texto y URLs",
-    desc: "Subí cualquier fuente y la IA la indexa al instante",
+    title: "Sin copiar y pegar",
+    desc: "Subís el archivo completo — la IA lo lee entero, sin que tengas que recortarlo.",
   },
   {
     icon: <Search className="w-4 h-4" />,
-    title: "Respuestas con fuentes",
-    desc: "Cada respuesta cita el fragmento exacto del documento",
+    title: "Te dice de dónde lo sacó",
+    desc: "Cada respuesta muestra el fragmento exacto del documento. Nada inventado.",
   },
   {
     icon: <Zap className="w-4 h-4" />,
-    title: "Llama 3.3 + Gemini",
-    desc: "Modelos de IA de última generación para respuestas precisas",
+    title: "Y si no está, lo busca online",
+    desc: "Cuando la respuesta no está en tu archivo, la encuentra en internet en tiempo real.",
   },
 ];
 
@@ -106,14 +106,14 @@ export default function AuthPage() {
 
           <div className="space-y-4">
             <h1 className="text-[3.2rem] font-black leading-[1.05] tracking-tighter text-foreground">
-              Preguntale a<br />
-              tus{" "}
+              La IA que recuerda<br />
+              lo que{" "}
               <span className="text-primary">
-                documentos.
+                vos subís.
               </span>
             </h1>
             <p className="text-muted-foreground text-base leading-relaxed max-w-sm">
-              Subí un PDF, una URL o texto plano — chateá con él como si fuera un experto en el tema.
+              Subí un archivo una vez y chateá con él cuando quieras. Tus documentos organizados, con respuestas que te muestran exactamente de dónde vienen.
             </p>
           </div>
 
@@ -159,6 +159,9 @@ export default function AuthPage() {
             >
               archiChat
             </h1>
+            <p className="text-xs text-muted-foreground mt-1.5 text-center max-w-[220px]">
+              Chateá con tus archivos — sin copiar y pegar
+            </p>
           </div>
 
           {/* Glow estático multicapa detrás de la card */}
@@ -188,13 +191,13 @@ export default function AuthPage() {
                       exit={{ opacity: 0, y: -6 }}
                       className="text-2xl font-black text-foreground tracking-tight"
                     >
-                      {isRegister ? "Crear cuenta" : "Bienvenido"}
+                      {isRegister ? "Empezá gratis" : "Bienvenido de vuelta"}
                     </motion.h2>
                   </AnimatePresence>
                   <p className="text-muted-foreground text-sm mt-1.5">
                     {isRegister
-                      ? "Empezá a chatear con tus archivos"
-                      : "Accedé a tus documentos"}
+                      ? "Sin tarjeta. En segundos ya podés chatear con tus archivos."
+                      : "Tus documentos te esperan."}
                   </p>
                 </div>
 
