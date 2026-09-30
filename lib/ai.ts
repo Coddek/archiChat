@@ -79,10 +79,13 @@ async function callGemini(
 // ─── GENERACIÓN DE TEXTO ──────────────────────────────────────────────────────
 
 // Genera una respuesta completa. Groq primero; si falla, Gemini.
+// reasoningEffort: cuánto "piensa" gpt-oss antes de responder ('medium' es más
+// preciso y tarda 1-2 s más; conviene cuando una respuesta equivocada confunde)
 export async function callAI(
   prompt: string,
   keys?: UserKeys,
-  model: string = MODELS.groqChat
+  model: string = MODELS.groqChat,
+  reasoningEffort: 'low' | 'medium' = 'low'
 ): Promise<string> {
   const groqKey   = keys?.groq   || process.env.GROQ_API_KEY!
   const geminiKey = keys?.gemini || process.env.GEMINI_API_KEY!
@@ -92,8 +95,8 @@ export async function callAI(
     const response = await groq.chat.completions.create({
       model,
       messages: [{ role: 'user', content: prompt }],
-      max_tokens: 1024,
-      reasoning_effort: 'low',
+      max_tokens: reasoningEffort === 'medium' ? 2048 : 1024,
+      reasoning_effort: reasoningEffort,
     })
     return response.choices[0].message.content ?? ''
   } catch (error) {

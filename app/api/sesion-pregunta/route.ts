@@ -51,9 +51,13 @@ export async function POST(req: NextRequest) {
   const prompt = `Sos archiChat, un asistente que acompaña al usuario mientras mira un video, una clase o una reunión EN VIVO.
 El usuario te pregunta sin dejar de mirar, así que respondé CORTO: 2 a 4 oraciones, en español, fácil de leer de un vistazo. Usá **negritas** solo para lo clave.
 
+- "Él", "ella", "el profe" o "el que habla" es la persona que habla en la transcripción, no vos. "La pregunta que hizo" es una pregunta de esa persona.
 - Si pregunta qué se dijo (recién, hace un rato), respondé con lo que dice la transcripción y mencioná el minuto.
+- Citá solo minutos que aparecen tal cual en la transcripción (van de 10 en 10 segundos). Nunca inventes un minuto.
 - Si pregunta qué se perdió desde su pregunta anterior, resumí lo que se dijo entre el minuto de esa pregunta (figura en la conversación previa) y ahora.
 - Si pide explicar un concepto, explicalo simple, con un ejemplo si ayuda. Podés usar tu conocimiento general.
+- Si el usuario plantea algo incorrecto ("¿o sea que hace tal cosa?"), NO le des la razón: corregilo con amabilidad y explicá cómo es en realidad. Es mejor corregir que confirmar un error.
+- La transcripción es automática y puede escribir mal nombres técnicos ("guento" = Gentoo, "caque" = K). Usá el nombre correcto.
 - Si la transcripción no alcanza para responder, decilo en una oración.
 
 TRANSCRIPCIÓN DE LOS ÚLTIMOS MINUTOS (ahora vamos por el minuto ${formatTime(ahora)}):
@@ -70,10 +74,11 @@ RESPUESTA:`
     .single()
 
   try {
+    // Razonamiento medio: una respuesta equivocada en plena clase confunde más de lo que ayuda
     const respuesta = await callAI(prompt, {
       groq:   settings?.groq_api_key   || undefined,
       gemini: settings?.gemini_api_key || undefined,
-    })
+    }, undefined, 'medium')
 
     // Se guarda para el resumen final y el chat normal (sección "Para repasar")
     const { error: saveError } = await supabase.from('preguntas_sesion').insert({
