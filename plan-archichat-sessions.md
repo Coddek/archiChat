@@ -79,17 +79,37 @@ Una prueba no garantiza estabilidad futura: **todo llamado a un LLM debe tener f
 - [x] Fallback Gemini `3.5-flash-lite` en el streaming del chat (antes no tenía)
 - [x] Fallback Gemini en `/api/suggest`
 - [x] Tipos (`tsc`) + lint + tests (`vitest`, 8/8) sin errores
-- [ ] `npm run build` — no se pudo correr porque el `next dev` abierto bloquea `.next/trace`. Correrlo con el dev cerrado antes del deploy
+- [x] `npm run build` sin errores
 - [x] Probar funciones con keys reales (script): chat ✅, búsqueda web ✅, Groq roto → Gemini ✅, Groq roto en web → Gemini con Google Search ✅, RAG completo con documento real ✅
 - [ ] Probar en la app con tu usuario logueado (la API pide sesión, no se pudo por script)
-- [ ] Commit + deploy a Vercel
+- [x] Commit + push a GitHub (`1652517`, 2026-09-30) → Vercel deploya solo
+- [x] Confirmar que el deploy de Vercel terminó bien y probar en producción (el chat responde)
+
+> 🐛 Bug (prueba en producción, doc de economía): "¿Cuánto está el dólar hoy?" respondió en **pesos mexicanos** con un dato del 10/09. Causas:
+> 1. El prompt no dice la fecha ni el país del usuario
+> 2. El chat con documento no manda el historial: cada pregunta llega sola al modelo
+> 3. Las respuestas de búsqueda web muestran "4 fragmentos usados" del documento aunque no se usaron
+
+- [x] Agregar fecha de hoy y país del usuario al prompt (país desde el header `x-vercel-ip-country` de Vercel; por defecto Argentina)
+- [x] Mandar los últimos 6 mensajes de la conversación junto con la pregunta
+- [x] Clasificar la intención viendo también la pregunta anterior ("¿y el blue?" → WEB)
+- [x] No mostrar fragmentos del documento en respuestas de búsqueda web
+- [x] Probar por script: "¿cuánto está el dólar hoy?" → pesos argentinos, fecha de hoy ✅; "¿y el blue?" → busca ✅; pregunta del apunte → usa el documento ✅
+
+> 🐛 Bug: en una prueba la búsqueda respondió "no tengo acceso a internet". Causa: **una búsqueda con `browser_search` gasta ~6.000 tokens** y el límite es 8.000 tokens/min por modelo → se agotó; el respaldo `gemini-2.5-flash` estaba con "high demand"; terminó respondiendo Flash-Lite sin búsqueda.
+
+- [x] Web: `gpt-oss-20b` → `gpt-oss-120b` (cada uno tiene su propio límite) → `gemini-2.5-flash` + Google Search (máx. 25 s) → Flash-Lite avisando "no pude consultar internet, probá en un minuto" (sin inventar cifras)
+- [x] Chat con documento: `gpt-oss-120b` → `gpt-oss-20b` → Gemini Flash-Lite
+- [x] Probado: con `gpt-oss-20b` agotado, respondió `gpt-oss-120b` sin que se note ✅
+
+**⚠️ Capacidad real de búsqueda web (free):** 200.000 tokens/día por modelo ÷ ~6.000 por búsqueda ≈ **33 búsquedas/día por modelo, ~66/día entre los dos** (compartido entre todos los usuarios que usan las keys del servidor). Gemini 3.x con Google Search **no tiene cuota free** (probado); solo `gemini-2.5-flash`, que a veces tarda >1 min.
 
 ---
 
 ## Fase 0 — Base de datos en Supabase
 
 - [x] Ejecutar el SQL del schema en el SQL Editor de Supabase
-- [ ] Verificar que aparecen las 3 tablas en Table Editor: `sesiones`, `transcripciones`, `contextos`
+- [x] Verificar que aparecen las 3 tablas en Table Editor: `sesiones`, `transcripciones`, `contextos` (verificado por API, 2026-09-30)
 - [ ] Verificar que RLS está activo en las 3 tablas
 
 **SQL a ejecutar:**

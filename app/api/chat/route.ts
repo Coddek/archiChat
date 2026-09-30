@@ -8,6 +8,7 @@ import type { Source } from '@/lib/rag'
 import { MessageSchema } from '@/lib/validations'
 import { createClient } from '@/lib/supabase/server'
 import { streamAnswer } from '@/lib/ai'
+import type { ChatMessage } from '@/lib/ai'
 
 async function getUserKeys() {
   const supabase = await createClient()
@@ -61,6 +62,33 @@ async function sseResponse(
   })
 }
 
+// Fecha de hoy y país del usuario, para que las respuestas con datos actuales
+// (precios, dólar, clima) sean del lugar y el día correctos.
+// Vercel manda el país y la zona horaria según la IP; en local usamos Argentina.
+function buildUserContext(req: NextRequest): string {
+  const country  = req.headers.get('x-vercel-ip-country') || 'AR'
+  const timeZone = req.headers.get('x-vercel-ip-timezone') || 'America/Argentina/Buenos_Aires'
+  let countryName = country
+  try { countryName = new Intl.DisplayNames(['es'], { type: 'region' }).of(country) ?? country } catch {}
+  let today: string
+  try {
+    today = new Date().toLocaleDateString('es-AR', { timeZone, weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  } catch {
+    today = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  }
+  return `Fecha de hoy: ${today}. El usuario está en ${countryName}.`
+}
+
+// Últimos mensajes de la conversación (sin la pregunta actual), para que el
+// modelo entienda preguntas de seguimiento como "¿y en Argentina?"
+const HISTORY_LENGTH = 6
+function recentHistory(messages: { role: string; content: string }[]): ChatMessage[] {
+  return messages
+    .slice(-(HISTORY_LENGTH + 1), -1)
+    .filter(m => (m.role === 'user' || m.role === 'assistant') && m.content?.trim())
+    .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }))
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { messages, documentId, documentTitle, isProcessed } = await req.json()
@@ -80,12 +108,20 @@ export async function POST(req: NextRequest) {
     }
 
     const keys = await getUserKeys()
+    const userContext = buildUserContext(req)
 
     // ── Caso RAG: documento procesado ─────────────────────────────────────────
     if (isProcessed && documentId) {
-      const context = await prepareRagPrompt(lastQuestion, documentId, documentTitle, keys)
+      const previousQuestion = messages.slice(0, -1).findLast((m: { role: string }) => m.role === 'user')?.content ?? ''
+      const context = await prepareRagPrompt(
+        lastQuestion, documentId, documentTitle, keys, userContext, previousQuestion
+      )
       return await sseResponse(
-        streamAnswer([{ role: 'user', content: context.prompt }], context.mode, keys),
+        streamAnswer(
+          [...recentHistory(messages), { role: 'user', content: context.prompt }],
+          context.mode,
+          keys
+        ),
         { sources: context.sources, confidence: context.confidence }
       )
     }
@@ -94,6 +130,7 @@ export async function POST(req: NextRequest) {
     const systemPrompt = `Sos archiChat, un asistente para analizar documentos.
 ${documentTitle ? `El documento activo se llama "${documentTitle}".` : ''}
 El documento todavía está siendo procesado. Respondé preguntas generales mientras tanto.
+${userContext}
 Respondé en español, de forma directa y concisa. Sin listas innecesarias.`
 
     return await sseResponse(

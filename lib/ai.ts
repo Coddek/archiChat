@@ -44,7 +44,8 @@ async function callGemini(
   messages: ChatMessage[],
   geminiKey: string,
   model: string,
-  search = false
+  search = false,
+  timeoutMs = 25_000   // gemini-2.5-flash con búsqueda a veces tarda más de 1 minuto
 ): Promise<string> {
   const system = messages.filter(m => m.role === 'system').map(m => m.content).join('\n')
   const contents = messages
@@ -64,6 +65,7 @@ async function callGemini(
         ...(system && { systemInstruction: { parts: [{ text: system }] } }),
         ...(search && { tools: [{ google_search: {} }] }),
       }),
+      signal: AbortSignal.timeout(timeoutMs),
     }
   )
   const data = await response.json()
@@ -109,14 +111,19 @@ export async function callAI(
 // ─── RESPUESTA DEL CHAT (STREAMING) ───────────────────────────────────────────
 
 // browser_search agrega marcas de cita tipo 【1†L3-L4】 que no sirven al usuario
+const NO_SEARCH_NOTICE = `La búsqueda en internet no está disponible en este momento.
+Si la pregunta necesita datos actuales (precios, cotizaciones, clima, noticias), decile al usuario
+que no pudiste consultar internet ahora y que pruebe de nuevo en un minuto. No inventes cifras.
+Si la pregunta no necesita datos actuales, respondela normalmente.`
+
 function cleanCitations(text: string): string {
   return text.replace(/【[^】]*】/g, '')
 }
 
 // Genera la respuesta del chat como un stream de texto.
-// - 'doc': Groq en streaming; si falla antes de empezar, Gemini.
-// - 'web': Groq con browser_search; si falla, Gemini con Google Search;
-//          si también falla, Gemini sin búsqueda.
+// - 'doc': Groq gpt-oss-120b en streaming → gpt-oss-20b → Gemini Flash-Lite.
+// - 'web': Groq gpt-oss-20b con browser_search → gpt-oss-120b con browser_search
+//          → Gemini 2.5 Flash con Google Search → Gemini Flash-Lite avisando que no pudo buscar.
 export async function* streamAnswer(
   messages: ChatMessage[],
   mode: AnswerMode,
@@ -126,18 +133,22 @@ export async function* streamAnswer(
   const geminiKey = keys?.gemini || process.env.GEMINI_API_KEY!
 
   if (mode === 'web') {
-    // Sin streaming: hay que limpiar las citas del texto completo
-    try {
-      const response = await groq.chat.completions.create({
-        model: MODELS.groqFast,
-        messages,
-        max_tokens: 2048,
-        tools: [{ type: 'browser_search' }],
-      })
-      const text = response.choices[0].message.content
-      if (text) { yield cleanCitations(text); return }
-    } catch (error) {
-      console.warn('Búsqueda web con Groq falló, probando Gemini con Google Search...', error)
+    // Cada modelo de Groq tiene su propio límite de 8.000 tokens/min y una búsqueda
+    // gasta ~6.000: si uno está agotado, probamos el otro.
+    // Sin streaming: hay que limpiar las citas del texto completo.
+    for (const model of [MODELS.groqFast, MODELS.groqChat]) {
+      try {
+        const response = await groq.chat.completions.create({
+          model,
+          messages,
+          max_tokens: 2048,
+          tools: [{ type: 'browser_search' }],
+        })
+        const text = response.choices[0].message.content
+        if (text) { yield cleanCitations(text); return }
+      } catch (error) {
+        console.warn(`Búsqueda web con Groq ${model} falló`, error)
+      }
     }
     try {
       yield await callGemini(messages, geminiKey, MODELS.geminiSearch, true)
@@ -145,30 +156,37 @@ export async function* streamAnswer(
     } catch (error) {
       console.warn('Búsqueda web con Gemini falló, respondiendo sin búsqueda...', error)
     }
-    yield await callGemini(messages, geminiKey, MODELS.geminiFallback)
+    // Ningún proveedor pudo buscar: que lo diga en vez de inventar cifras
+    yield await callGemini(
+      [{ role: 'system', content: NO_SEARCH_NOTICE }, ...messages],
+      geminiKey,
+      MODELS.geminiFallback
+    )
     return
   }
 
-  // Si Groq ya mandó texto y se corta a la mitad, no caemos a Gemini
+  // Si Groq ya mandó texto y se corta a la mitad, no caemos a otro modelo
   // (el usuario vería la respuesta duplicada)
   let started = false
-  try {
-    const stream = await groq.chat.completions.create({
-      model: MODELS.groqChat,
-      messages,
-      stream: true,
-      max_tokens: 1024,
-      temperature: 0.7,
-      reasoning_effort: 'low',
-    })
-    for await (const chunk of stream) {
-      const text = chunk.choices[0]?.delta?.content
-      if (text) { started = true; yield text }
+  for (const model of [MODELS.groqChat, MODELS.groqFast]) {
+    try {
+      const stream = await groq.chat.completions.create({
+        model,
+        messages,
+        stream: true,
+        max_tokens: 1024,
+        temperature: 0.7,
+        reasoning_effort: 'low',
+      })
+      for await (const chunk of stream) {
+        const text = chunk.choices[0]?.delta?.content
+        if (text) { started = true; yield text }
+      }
+      return
+    } catch (error) {
+      if (started) throw error
+      console.warn(`Groq ${model} falló, probando el siguiente...`, error)
     }
-    return
-  } catch (error) {
-    if (started) throw error
-    console.warn(`Groq ${MODELS.groqChat} falló, intentando con Gemini...`, error)
   }
   yield await callGemini(messages, geminiKey, MODELS.geminiFallback)
 }

@@ -38,7 +38,9 @@ export async function prepareRagPrompt(
   question: string,
   documentId: string,
   documentTitle?: string,
-  keys?: UserKeys
+  keys?: UserKeys,
+  userContext = '',      // fecha de hoy y país del usuario (lo arma el route)
+  previousQuestion = ''  // para clasificar bien preguntas de seguimiento ("¿y el blue?")
 ): Promise<RagContext> {
 
   // PASO 1: Convertir la pregunta en vector
@@ -73,7 +75,9 @@ export async function prepareRagPrompt(
 - DOC: si pregunta sobre el contenido del documento
 - GENERAL: cualquier otra pregunta
 
-Pregunta: "${question}"
+Si la pregunta es un seguimiento de la anterior, clasificala según la anterior.
+${previousQuestion ? `Pregunta anterior: "${previousQuestion}"
+` : ''}Pregunta: "${question}"
 Categoría:`,
     keys,
     MODELS.groqFast
@@ -97,14 +101,18 @@ Categoría:`,
 
     return {
       prompt: `Sos archiChat. El usuario pide información de internet.
+${userContext}
 ${docContext}
 Buscá en la web la información actualizada y respondé en español con datos reales.
+Si la pregunta depende del lugar (precios, moneda, clima, noticias), asumí el país del usuario salvo que diga otro.
+Usá los datos más recientes que encuentres y aclará de qué fecha son.
 
 PREGUNTA: ${question}
 
 RESPUESTA:`,
       mode: 'web',
-      sources,
+      // La respuesta sale de internet, no del documento: no mostramos fragmentos
+      sources: [],
       confidence: null,
     }
   }
@@ -119,6 +127,7 @@ RESPUESTA:`,
 Respondé la siguiente pregunta usando principalmente la información del contexto del documento.
 Podés complementar con tu conocimiento general si es necesario, pero priorizá el contenido del documento.
 Respondé en español, de forma clara y directa. Usá markdown para formatear si ayuda a la claridad.
+${userContext}
 
 CONTEXTO DEL DOCUMENTO:
 ${context}
@@ -136,12 +145,14 @@ RESPUESTA:`,
   return {
     prompt: `Sos archiChat, un asistente inteligente.
 Respondé la siguiente pregunta en español, de forma clara, directa y útil.
+${userContext}
+Si la pregunta depende del lugar o de datos actuales, buscá en internet y asumí el país del usuario salvo que diga otro.
 
 PREGUNTA: ${question}
 
 RESPUESTA:`,
     mode: 'web',
-    sources,
+    sources: [],
     confidence: null,
   }
 }
