@@ -74,6 +74,16 @@ RESPUESTA:`
       groq:   settings?.groq_api_key   || undefined,
       gemini: settings?.gemini_api_key || undefined,
     })
+
+    // Se guarda para el resumen final y el chat normal (sección "Para repasar")
+    const { error: saveError } = await supabase.from('preguntas_sesion').insert({
+      sesion_id: sesionId,
+      pregunta,
+      respuesta,
+      timestamp_segundos: ahora,
+    })
+    if (saveError) console.error('No se pudo guardar la pregunta en vivo:', saveError)
+
     return NextResponse.json({ respuesta })
   } catch (e) {
     console.error('Error en pregunta de sesión:', e)
