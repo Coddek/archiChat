@@ -54,3 +54,33 @@ export const MessageSchema = z.object({
 // Así no tenemos que definir los tipos dos veces
 export type DocumentInput = z.infer<typeof DocumentSchema>
 export type MessageInput = z.infer<typeof MessageSchema>
+
+// Schema para cada tramo de audio que llega a /api/transcribir (ArchiChat Sessions)
+// 4 MB: Vercel rechaza cuerpos de más de 4,5 MB; un tramo de 10 s pesa ~150 KB
+export const MAX_AUDIO_BYTES = 4 * 1024 * 1024
+
+export const TranscripcionSchema = z.object({
+  sesionId: z.string().uuid('Sesión inválida'),
+  timestampSegundos: z.coerce.number().int().min(0),
+  textoPrevio: z.string().max(1000).default(''),
+  audio: z
+    .instanceof(File, { message: 'Falta el audio' })
+    .refine(f => f.size > 0, 'El audio está vacío')
+    .refine(f => f.size <= MAX_AUDIO_BYTES, 'El tramo de audio es demasiado grande'),
+})
+
+// Schema para las preguntas rápidas durante una sesión en vivo
+export const PreguntaSesionSchema = z.object({
+  sesionId: z.string().uuid('Sesión inválida'),
+  pregunta: z
+    .string()
+    .min(2, 'La pregunta debe tener al menos 2 caracteres')
+    .max(500, 'La pregunta no puede superar los 500 caracteres'),
+  // Últimas preguntas y respuestas, para entender seguimientos ("¿y eso?")
+  historial: z
+    .array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().max(4000) }))
+    .max(6)
+    .default([]),
+  // Minuto de la sesión en que se hace la pregunta
+  segundoActual: z.number().int().min(0).default(0),
+})

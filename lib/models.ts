@@ -20,4 +20,9 @@ export const MODELS = {
 
   // Gemini — embeddings (3072 dims). Cambiarlo obliga a re-generar todos los chunks.
   embedding: 'gemini-embedding-001',
+
+  // Groq — transcripción de audio (Sessions). Cada uno tiene su propio límite,
+  // así que el segundo sirve de respaldo. Gemini no sirve: no acepta audio webm.
+  whisper:         'whisper-large-v3-turbo',
+  whisperFallback: 'whisper-large-v3',
 } as const

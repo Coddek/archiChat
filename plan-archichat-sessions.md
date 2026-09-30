@@ -104,13 +104,15 @@ Una prueba no garantiza estabilidad futura: **todo llamado a un LLM debe tener f
 
 **⚠️ Capacidad real de búsqueda web (free):** 200.000 tokens/día por modelo ÷ ~6.000 por búsqueda ≈ **33 búsquedas/día por modelo, ~66/día entre los dos** (compartido entre todos los usuarios que usan las keys del servidor). Gemini 3.x con Google Search **no tiene cuota free** (probado); solo `gemini-2.5-flash`, que a veces tarda >1 min.
 
+**Rotar API keys — Pendiente (probado 2026-09-30):** se probó una segunda key de Groq y resultó ser de la **misma organización** (`org_01km8v8...`) que la actual. Los límites son por organización, así que varias keys de la misma cuenta comparten la misma cuota y rotarlas no suma nada. Usar keys de otras cuentas para saltar los límites. La rotación que sí vale es **entre modelos y proveedores** (ya implementada) y que cada usuario pueda cargar su propia key (ya existe en Configuración).
+
 ---
 
 ## Fase 0 — Base de datos en Supabase
 
 - [x] Ejecutar el SQL del schema en el SQL Editor de Supabase
 - [x] Verificar que aparecen las 3 tablas en Table Editor: `sesiones`, `transcripciones`, `contextos` (verificado por API, 2026-09-30)
-- [ ] Verificar que RLS está activo en las 3 tablas
+- [x] Verificar que RLS está activo en las 3 tablas (probado 2026-09-30: sin usuario, insert y select bloqueados en las 3)
 
 **SQL a ejecutar:**
 ```sql
@@ -180,21 +182,21 @@ CREATE POLICY "contextos_own" ON contextos
 
 ### 1.1 — Estructura de archivos nuevos en ArchiChat
 
-- [ ] Crear `/app/sesion/page.tsx` — página principal de sesión activa
-- [ ] Crear `/app/sesiones/page.tsx` — historial de sesiones
-- [ ] Crear `/hooks/useAudioCapture.ts` — hook que captura audio (pestaña/sistema + micrófono)
-- [ ] Crear `/hooks/useTranscription.ts` — hook que manda audio a Groq
-- [ ] Crear `/app/api/transcribir/route.ts` — endpoint que recibe audio y llama a Groq Whisper
-- [ ] Agregar link a "Sesiones" en la navegación existente de ArchiChat
+- [x] Crear `/app/sesion/page.tsx` — página principal de sesión activa
+- [x] Crear `/app/sesiones/page.tsx` — historial de sesiones
+- [x] Crear `/hooks/useAudioCapture.ts` — hook que captura audio (pestaña/sistema + micrófono)
+- [x] Crear `/hooks/useTranscription.ts` — hook que manda audio a Groq
+- [x] Crear `/app/api/transcribir/route.ts` — endpoint que recibe audio y llama a Groq Whisper
+- [x] Agregar link a "Sesiones" en la navegación existente de ArchiChat
 
 ### 1.2 — API Route para transcripción
 
-- [ ] Crear `/app/api/transcribir/route.ts`
-- [ ] Recibe un blob de audio (FormData)
-- [ ] Lo manda a Groq Whisper con `groq.audio.transcriptions.create()` (modelo `whisper-large-v3-turbo`, `language: 'es'`)
-- [ ] Reutilizar la lógica de keys de `lib/ai.ts` (key del usuario → fallback a `process.env.GROQ_API_KEY`), no duplicarla
-- [ ] Devuelve `{ texto: string, duracion_segundos: number }`
-- [ ] Manejar errores: rate limit (429), audio vacío, archivo muy grande
+- [x] Crear `/app/api/transcribir/route.ts`
+- [x] Recibe un blob de audio (FormData)
+- [x] Lo manda a Groq Whisper con `groq.audio.transcriptions.create()` (modelo `whisper-large-v3-turbo`, `language: 'es'`)
+- [x] Reutilizar la lógica de keys de `lib/ai.ts` (key del usuario → fallback a `process.env.GROQ_API_KEY`), no duplicarla
+- [x] Devuelve `{ texto: string, duracion_segundos: number }`
+- [x] Manejar errores: rate limit (429), audio vacío, archivo muy grande
 
 **Lógica clave — por qué usamos una API Route y no llamamos a Groq directo desde el cliente:**
 La API key de Groq nunca debe estar en el navegador — cualquiera podría verla en las DevTools. La API Route corre en el servidor de Next.js (Vercel) y la key solo vive ahí.
@@ -202,15 +204,15 @@ La API key de Groq nunca debe estar en el navegador — cualquiera podría verla
 ### 1.3 — Hook useAudioCapture
 
 **Fuente de audio — el usuario elige al iniciar:**
-- [ ] **"Pestaña del navegador"** (Meet, Zoom web, Teams web, YouTube, clases grabadas): `navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })` → el usuario elige la pestaña y tilda "Compartir audio de la pestaña". Descartar el track de video.
-- [ ] **"Pantalla completa + audio del sistema"** (app de escritorio de Zoom/Teams/Discord): mismo `getDisplayMedia`, eligiendo pantalla entera y tildando "Compartir audio del sistema". Funciona en Chrome/Edge en Windows (y macOS con Chrome 141+).
-- [ ] **"Micrófono"** (clase presencial, reunión en persona): `getUserMedia({ audio: true })`
-- [ ] **Opción "incluir mi voz"**: mezclar pestaña/sistema + micrófono con `AudioContext` → `createMediaStreamSource` ×2 → `createMediaStreamDestination`. Sin esto, en una reunión solo se transcribe a los demás, no a vos.
-- [ ] Si el usuario no tildó "compartir audio" (`stream.getAudioTracks().length === 0`) → mostrar error claro con instrucción de volver a elegir
-- [ ] Detectar cuando el usuario corta el compartir desde la barra de Chrome (`track.onended`) → pausar la sesión
-- [ ] Detectar soporte real antes de mostrar opciones (`'getDisplayMedia' in navigator.mediaDevices`) y ocultar las fuentes que no funcionan en ese navegador (ver tabla de compatibilidad abajo)
-- [ ] En navegadores sin captura de audio: ofrecer solo micrófono y avisar "para capturar reuniones o videos usá Chrome o Edge en una computadora"
-- [ ] Elegir el formato según el navegador con `MediaRecorder.isTypeSupported()`: `audio/webm` en Chrome/Edge/Firefox, `audio/mp4` en Safari/iOS. Whisper acepta los dos; mandar el nombre de archivo con la extensión correcta (`chunk.webm` / `chunk.mp4`)
+- [x] **"Pestaña del navegador"** (Meet, Zoom web, Teams web, YouTube, clases grabadas): `navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })` → el usuario elige la pestaña y tilda "Compartir audio de la pestaña". Descartar el track de video.
+- [x] **"Pantalla completa + audio del sistema"** (app de escritorio de Zoom/Teams/Discord): mismo `getDisplayMedia`, eligiendo pantalla entera y tildando "Compartir audio del sistema". Funciona en Chrome/Edge en Windows (y macOS con Chrome 141+).
+- [x] **"Micrófono"** (clase presencial, reunión en persona): `getUserMedia({ audio: true })`
+- [x] **Opción "incluir mi voz"**: mezclar pestaña/sistema + micrófono con `AudioContext` → `createMediaStreamSource` ×2 → `createMediaStreamDestination`. Sin esto, en una reunión solo se transcribe a los demás, no a vos.
+- [x] Si el usuario no tildó "compartir audio" (`stream.getAudioTracks().length === 0`) → mostrar error claro con instrucción de volver a elegir
+- [x] Detectar cuando el usuario corta el compartir desde la barra de Chrome (`track.onended`) → pausar la sesión
+- [x] Detectar soporte real antes de mostrar opciones (`'getDisplayMedia' in navigator.mediaDevices`) y ocultar las fuentes que no funcionan en ese navegador (ver tabla de compatibilidad abajo)
+- [x] En navegadores sin captura de audio: ofrecer solo micrófono y avisar "para capturar reuniones o videos usá Chrome o Edge en una computadora"
+- [x] Elegir el formato según el navegador con `MediaRecorder.isTypeSupported()`: `audio/webm` en Chrome/Edge/Firefox, `audio/mp4` en Safari/iOS. Whisper acepta los dos; mandar el nombre de archivo con la extensión correcta (`chunk.webm` / `chunk.mp4`)
 
 **⚠️ Compatibilidad por navegador — leer antes de probar con usuarios:**
 
@@ -231,10 +233,10 @@ La API key de Groq nunca debe estar en el navegador — cualquiera podría verla
 - [ ] Probar en un iPhone real antes de dárselo a usuarios de prueba: grabación de 5 min con la pantalla encendida, y confirmar qué pasa al bloquearla (esperado: se corta → la sesión debe pausarse y avisar, no perder lo transcripto)
 
 **Captura en chunks:**
-- [ ] Chunks de **10 segundos**, **deteniendo y reiniciando el `MediaRecorder` en cada chunk** (NO usar `start(timeslice)`)
-- [ ] Exportar: `{ iniciar, detener, pausar, estado, error, fuente }`
-- [ ] Manejar caso: usuario deniega permiso
-- [ ] Manejar caso: navegador no soporta MediaRecorder
+- [x] Chunks de **10 segundos**, **deteniendo y reiniciando el `MediaRecorder` en cada chunk** (NO usar `start(timeslice)`)
+- [x] Exportar: `{ iniciar, detener, pausar, reanudar, estado, error, elapsedSeconds }` (la fuente la guarda la página)
+- [x] Manejar caso: usuario deniega permiso
+- [x] Manejar caso: navegador no soporta MediaRecorder
 
 **Por qué NO `start(timeslice)`:**
 Con `mediaRecorder.start(5000)` solo el primer blob tiene el encabezado del webm; los siguientes no son archivos válidos por sí solos y Whisper los rechaza. Reiniciando el recorder cada 10 seg, cada blob es un webm completo. Costo: se pueden perder unos milisegundos entre chunks (aceptable para transcripción).
@@ -247,26 +249,32 @@ Con el micrófono, el audio de una reunión con auriculares no se escucha nunca,
 
 ### 1.4 — Hook useTranscription
 
-- [ ] Recibe cada chunk de audio del hook anterior
-- [ ] Lo manda a `/api/transcribir`
-- [ ] Acumula el texto en un array con timestamps
-- [ ] Maneja la cola: si llega un chunk mientras otro se está procesando, lo encola
-- [ ] Exportar: `{ transcripciones, procesando, error }`
+- [x] Recibe cada chunk de audio del hook anterior
+- [x] Lo manda a `/api/transcribir`
+- [x] Acumula el texto en un array con timestamps
+- [x] Maneja la cola: si llega un chunk mientras otro se está procesando, lo encola
+- [x] Exportar: `{ transcripciones, procesando, error }`
 
 ### 1.5 — Página de sesión activa (UI básica)
 
-- [ ] Botón "Iniciar sesión" — pide nombre opcional + fuente de audio (pestaña / pantalla+sistema / micrófono, con check "incluir mi voz") y arranca
-- [ ] Indicador visual de que está grabando (punto rojo animado)
-- [ ] Área de texto que va mostrando la transcripción en tiempo real
-- [ ] Botón "Pausar / Reanudar"
-- [ ] Botón "Finalizar sesión"
-- [ ] Contador de tiempo transcurrido
+- [x] Botón "Iniciar sesión" — pide nombre opcional + fuente de audio (pestaña / pantalla+sistema / micrófono, con check "incluir mi voz") y arranca
+- [x] Indicador visual de que está grabando (punto rojo animado)
+- [x] Área de texto que va mostrando la transcripción en tiempo real
+- [x] Botón "Pausar / Reanudar"
+- [x] Botón "Finalizar sesión"
+- [x] Contador de tiempo transcurrido
 
 ### 1.6 — Guardar en Supabase
 
-- [ ] Al iniciar sesión: crear registro en tabla `sesiones`
-- [ ] Cada vez que llega texto: insertar en `transcripciones` con timestamp
-- [ ] Al finalizar: actualizar `estado` a 'finalizada' en `sesiones`
+- [x] Al iniciar sesión: crear registro en tabla `sesiones`
+- [x] Cada vez que llega texto: insertar en `transcripciones` con timestamp
+- [x] Al finalizar: actualizar `estado` a 'finalizada' en `sesiones`
+- [x] Extra: filtro de frases que Whisper inventa con silencio ("Gracias por ver", "Subtítulos por Amara.org") + 4 tests
+- [x] Extra: Whisper recibe las últimas palabras transcriptas como contexto (continuidad entre tramos)
+- [x] Extra: respaldo `whisper-large-v3-turbo` → `whisper-large-v3` (cada uno con su propio límite)
+- [x] Probado por script: voz en español → texto en ~0,6–1,6 s ✅; silencio → vacío, sin frases inventadas ✅
+- [ ] Probar en el navegador con un video de YouTube (criterio de éxito de abajo)
+- [ ] Probar pestaña de Meet, audio de la computadora y micrófono
 
 ### ✅ Criterio de éxito Fase 1
 Reproducir un video de YouTube en otra pestaña durante 2 minutos, capturar esa pestaña, y ver el texto aparecer en pantalla con menos de ~15 segundos de delay. Probar también con micrófono. El texto debe guardarse en Supabase.
@@ -332,11 +340,32 @@ En 20 segundos tenemos 2 chunks = suficiente texto para que el LLM detecte algo 
 
 ### 2.4 — Pregunta rápida en vivo
 
-- [ ] Input chico debajo del panel de contexto: "Preguntá sobre lo que se está diciendo"
-- [ ] Crear `/app/api/sesion-pregunta/route.ts`: recibe `{ sesion_id, pregunta }`
-- [ ] Contexto = últimos ~10 minutos de transcripción (texto directo en el prompt, **sin RAG**) + conceptos detectados
-- [ ] Respuesta corta (2-4 oraciones), pensada para leer sin perder el hilo de la reunión
-- [ ] Botón rápido "¿Qué dijo recién?" → explica los últimos 60 segundos
+- [x] Input chico debajo del panel de contexto: "Preguntá sobre lo que se está diciendo"
+- [x] Crear `/app/api/sesion-pregunta/route.ts`: recibe `{ sesion_id, pregunta }`
+- [x] Contexto = últimos ~10 minutos de transcripción (texto directo en el prompt, **sin RAG**) + conceptos detectados
+- [x] Respuesta corta (2-4 oraciones), pensada para leer sin perder el hilo de la reunión
+- [x] Botón rápido "¿Qué dijo recién?" → explica los últimos 60 segundos
+
+### 2.5 — Ventana flotante (para no salir del video)
+
+> Surgió al probar la Fase 1: el video está en una pestaña y archiChat en otra, así que para preguntar había que dejar el video.
+
+- [x] Ventana flotante con **Document Picture-in-Picture** (Chrome/Edge 116+): queda siempre encima, incluso de la app de escritorio de Zoom
+- [x] Contiene: reloj + estado, Pausar/Reanudar/Finalizar, últimas líneas de la transcripción, chat de preguntas rápidas
+- [x] Botones rápidos: "¿Qué dijo recién?", "Explicámelo más simple", "Resumen hasta ahora"
+- [x] Mismo estado que la página (React portal): lo que preguntás en la ventana aparece también en la página
+- [x] Al elegir la pestaña, quedarse en archiChat (`CaptureController.setFocusBehavior('no-focus-change')`) para poder abrir la ventana
+- [x] Temporizadores en un Web Worker: Chrome frena los `setInterval` de pestañas ocultas (después de 5 min, a 1 vez por minuto), los workers no
+- [x] Sin framer-motion dentro de la ventana: usa `requestAnimationFrame` de la pestaña principal, que se congela cuando está oculta
+- [x] Navegadores sin Document PiP (Firefox, Safari): ocultar el botón; se usa la página normal
+- [x] Probado en el navegador con un video de 9 min (2026-09-30): transcripción y preguntas en vivo funcionan bien
+- [ ] Probar una sesión de más de 10 min con la pestaña oculta (verifica el Worker)
+
+> 🐛 Bug (prueba 2026-09-30): Whisper repitió "D. Rompe las cifras." 3 veces (08:10–08:30, con música/silencio) → se descartan tramos que repiten el final del anterior y segmentos con `compression_ratio` > 2,4 (+4 tests) ✅
+> 🐛 Bug: "¿qué me perdí desde mi última pregunta?" respondía sobre otro minuto → cada pregunta viaja con el minuto en que se hizo ✅ (probado con la transcripción real: resume de 01:00 a 05:00)
+> 💡 Mejora futura: palabras clave al iniciar la sesión, pasadas a Whisper como contexto, para que escriba bien términos técnicos ("Claude Code" y no "Cloud Code", "Glob" y no "Glove")
+
+> 🐛 Bug (prueba 2026-09-30): dejó de transcribir en el minuto 5:20 con la pestaña oculta → freno de temporizadores de Chrome (se arregla con el Worker de arriba). Al finalizar tiró `stopTickerRef.current.call is not a function`: fue la recarga en caliente de Next.js mientras se editaba el hook en plena sesión (solo en desarrollo). Recargar la página antes de probar.
 
 **Por qué sin RAG en vivo:**
 10 minutos de habla son ~1.500 palabras, entran enteras en el prompt. Indexar con embeddings en vivo sería lento y gastaría cuota de Gemini sin necesidad. El RAG se usa después, cuando la sesión ya terminó (ver Fase 6).
@@ -433,6 +462,7 @@ Poder revisar una sesión de hace 3 días con toda la transcripción y los conce
   ```
 
 ### 4.5.2 — Indexación al finalizar
+- [ ] Guardar también las preguntas en vivo con sus respuestas (hoy se pierden al recargar) e incluirlas en el documento: así el chat principal sabe qué no entendió el usuario
 - [ ] Al finalizar la sesión (después del resumen): crear un registro en `documents` con `source_type = 'sesion'`, título = título de la sesión
 - [ ] Texto a indexar: resumen + transcripción con marcas de tiempo (`[12:30] ...`) + conceptos detectados
 - [ ] Reutilizar `processDocument` de `lib/pipeline.ts` (chunking + embeddings) — agregar el caso `'sesion'` que usa el texto tal cual

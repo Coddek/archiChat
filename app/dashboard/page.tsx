@@ -17,6 +17,7 @@ import {
   Sparkles,
   FolderOpen,
   Settings,
+  Mic,
   type LucideIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -124,6 +125,11 @@ export default function DashboardPage() {
 
           <div className="flex items-center gap-4">
             <span className="text-xs font-medium text-muted-foreground hidden md:block italic">{userEmail}</span>
+            <Button variant="ghost" size="sm" onClick={() => router.push("/sesiones")}
+              className="text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-xl gap-2 transition-all">
+              <Mic className="w-4 h-4" />
+              <span className="hidden sm:inline">Sesiones</span>
+            </Button>
             <ThemeToggle />
             <button
               onClick={() => { setIsOnboarding(false); setShowSettings(true); }}
