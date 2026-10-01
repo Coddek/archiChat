@@ -1,14 +1,16 @@
 "use client";
 
 // Contenido de la ventana flotante (Document Picture-in-Picture):
-// reloj y controles, las últimas líneas de la transcripción y el chat en vivo.
+// reloj y controles, las últimas líneas de la transcripción, el chat en vivo
+// y los conceptos detectados.
 
 import { useEffect, useRef } from "react";
 import { Pause, Play, Square, Loader2 } from "lucide-react";
 import { formatTime } from "@/lib/utils";
-import { LiveChat } from "./LiveChat";
+import { LiveSidePanel } from "./LiveSidePanel";
 import type { Transcripcion } from "@/hooks/useTranscription";
 import type { MensajeEnVivo } from "@/hooks/useLiveQuestions";
+import type { Concepto } from "@/hooks/useContextDetection";
 
 // Líneas de transcripción visibles en la ventana (la completa está en la página)
 const VISIBLE_LINES = 4;
@@ -23,6 +25,9 @@ interface Props {
   mensajes: MensajeEnVivo[];
   cargando: boolean;
   onPreguntar: (pregunta: string) => void;
+  conceptos: Concepto[];
+  analizando: boolean;
+  aviso: string | null;      // reintentando, sin conexión…
   onPausarReanudar: () => void;
   onFinalizar: () => void;
 }
@@ -80,9 +85,14 @@ export function FloatingPanel(props: Props) {
         <div ref={endRef} />
       </div>
 
-      {/* Chat */}
+      {props.aviso && <p className="text-[11px] text-amber-500 leading-snug -mt-1">{props.aviso}</p>}
+
+      {/* Chat y conceptos */}
       <div className="flex-1 min-h-0">
-        <LiveChat mensajes={props.mensajes} cargando={props.cargando} onPreguntar={props.onPreguntar} compact />
+        <LiveSidePanel
+          mensajes={props.mensajes} cargando={props.cargando} onPreguntar={props.onPreguntar}
+          conceptos={props.conceptos} analizando={props.analizando} compact
+        />
       </div>
     </div>
   );

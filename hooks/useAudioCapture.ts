@@ -19,6 +19,7 @@ export interface AudioChunk {
   mimeType: string;
   inicioSegundos: number;   // segundo de la sesión en que empieza el tramo
   duracionSegundos: number;
+  silencioso: boolean;      // nadie habló ni sonó nada: no hace falta transcribirlo
 }
 
 export interface AudioSupport {
@@ -30,6 +31,12 @@ export interface AudioSupport {
 
 const CHUNK_MS = 10_000;
 const MIN_CHUNK_SECONDS = 1;  // tramos más cortos (al pausar justo después de rotar) se descartan
+
+// Medidor de volumen: cada 250 ms se mide el nivel (RMS) del audio. Si en todo
+// el tramo nunca supera este umbral (~-48 dB), es silencio: video en pausa,
+// recreo, nadie hablando. Así no se gasta cupo de Whisper en silencio.
+const LEVEL_SAMPLE_MS = 250;
+const SILENCE_RMS = 0.004;
 
 // Qué puede hacer este navegador. Se llama en el cliente, después de montar.
 export function getAudioSupport(): AudioSupport {
@@ -76,6 +83,13 @@ export function useAudioCapture({ onChunk, onSourceEnded }: Options) {
   const stopTickerRef = useRef<(() => void) | null>(null);
   const configRef    = useRef<{ source: AudioSource; includeMic: boolean } | null>(null);
 
+  // Medidor de volumen
+  const meterCtxRef  = useRef<AudioContext | null>(null);
+  const analyserRef  = useRef<AnalyserNode | null>(null);
+  const peakRef      = useRef(0);                         // nivel máximo del tramo en curso
+  const chunkPeaks   = useRef(new WeakMap<MediaRecorder, number>());
+  const stopMeterRef = useRef<(() => void) | null>(null);
+
   // Tiempo grabado, sin contar las pausas
   const accumulatedRef = useRef(0);
   const resumedAtRef   = useRef<number | null>(null);
@@ -106,41 +120,69 @@ export function useAudioCapture({ onChunk, onSourceEnded }: Options) {
       const duracion = elapsedSeconds() - inicio;
       if (parts.length === 0 || duracion < MIN_CHUNK_SECONDS) return;
       const type = recorder.mimeType || mimeType || "audio/webm";
+      const peak = chunkPeaks.current.get(recorder) ?? Infinity;
       onChunkRef.current({
         blob: new Blob(parts, { type }),
         mimeType: type,
         inicioSegundos: Math.floor(inicio),
         duracionSegundos: Math.round(duracion),
+        silencioso: peak < SILENCE_RMS,
       });
     };
     recorder.start();
     recorderRef.current = recorder;
   }, [elapsedSeconds]);
 
+  // Guarda el nivel máximo del tramo que termina y empieza a medir el siguiente.
+  // Si el medidor no está andando, el nivel queda "desconocido" y el tramo se manda igual.
+  const closeChunkLevel = useCallback((recorder: MediaRecorder) => {
+    const meterOk = analyserRef.current && meterCtxRef.current?.state === "running";
+    chunkPeaks.current.set(recorder, meterOk ? peakRef.current : Infinity);
+    peakRef.current = 0;
+  }, []);
+
+  const startMeter = useCallback(() => {
+    const analyser = analyserRef.current;
+    if (!analyser) return;
+    const buffer = new Float32Array(analyser.fftSize);
+    stopMeterRef.current = createTicker(LEVEL_SAMPLE_MS, () => {
+      analyser.getFloatTimeDomainData(buffer);
+      let sum = 0;
+      for (let i = 0; i < buffer.length; i++) sum += buffer[i] * buffer[i];
+      peakRef.current = Math.max(peakRef.current, Math.sqrt(sum / buffer.length));
+    });
+  }, []);
+
   // Cada 10 s: arranca el recorder nuevo y recién después detiene el viejo (sin huecos).
   // El temporizador corre en un Worker para que no se frene con la pestaña oculta.
   const startRotation = useCallback(() => {
+    peakRef.current = 0;
     startRecorder();
+    startMeter();
     stopTickerRef.current = createTicker(CHUNK_MS, () => {
       const old = recorderRef.current;
+      if (old) closeChunkLevel(old);
       startRecorder();
       if (old?.state === "recording") old.stop();
     });
-  }, [startRecorder]);
+  }, [startRecorder, startMeter, closeChunkLevel]);
 
   // Resuelve cuando el último tramo ya se entregó con onChunk
   const stopRotation = useCallback(() => {
     stopTickerRef.current?.();
     stopTickerRef.current = null;
+    stopMeterRef.current?.();
+    stopMeterRef.current = null;
     const recorder = recorderRef.current;
     recorderRef.current = null;
+    if (recorder) closeChunkLevel(recorder);
     if (recorder?.state !== "recording") return Promise.resolve();
     return new Promise<void>(resolve => {
       // Se registra después de onstop, así corre cuando el tramo ya se entregó
       recorder.addEventListener("stop", () => resolve(), { once: true });
       recorder.stop();
     });
-  }, []);
+  }, [closeChunkLevel]);
 
   const releaseStreams = useCallback(() => {
     streamsRef.current.forEach(s => s.getTracks().forEach(t => { t.onended = null; t.stop(); }));
@@ -148,6 +190,9 @@ export function useAudioCapture({ onChunk, onSourceEnded }: Options) {
     recordStream.current = null;
     audioCtxRef.current?.close().catch(() => {});
     audioCtxRef.current = null;
+    meterCtxRef.current?.close().catch(() => {});
+    meterCtxRef.current = null;
+    analyserRef.current = null;
   }, []);
 
   // Pide los permisos y arma el stream que se va a grabar
@@ -194,16 +239,34 @@ export function useAudioCapture({ onChunk, onSourceEnded }: Options) {
     const audioTracks = streams.flatMap(s => s.getAudioTracks());
     if (streams.length === 1) {
       recordStream.current = new MediaStream(audioTracks);
-      return;
+    } else {
+      // Pestaña/sistema + micrófono: se mezclan en un solo stream
+      const ctx = new AudioContext();
+      const destination = ctx.createMediaStreamDestination();
+      streams.forEach(s => {
+        if (s.getAudioTracks().length > 0) ctx.createMediaStreamSource(s).connect(destination);
+      });
+      audioCtxRef.current = ctx;
+      recordStream.current = destination.stream;
     }
-    // Pestaña/sistema + micrófono: se mezclan en un solo stream
-    const ctx = new AudioContext();
-    const destination = ctx.createMediaStreamDestination();
-    streams.forEach(s => {
-      if (s.getAudioTracks().length > 0) ctx.createMediaStreamSource(s).connect(destination);
-    });
-    audioCtxRef.current = ctx;
-    recordStream.current = destination.stream;
+
+    // Medidor de volumen sobre lo mismo que se graba. Si el navegador no lo
+    // permite, no pasa nada: los tramos se mandan todos, como antes.
+    try {
+      const meter = new AudioContext();
+      const analyser = meter.createAnalyser();
+      analyser.fftSize = 2048;
+      meter.createMediaStreamSource(recordStream.current).connect(analyser);
+      // Conectado a la salida con volumen 0: algunos navegadores no procesan
+      // nodos que no terminan en la salida. No se escucha nada.
+      const mute = meter.createGain();
+      mute.gain.value = 0;
+      analyser.connect(mute).connect(meter.destination);
+      meterCtxRef.current = meter;
+      analyserRef.current = analyser;
+    } catch {
+      analyserRef.current = null;
+    }
   }, []);
 
   const iniciar = useCallback(async (source: AudioSource, includeMic = false) => {

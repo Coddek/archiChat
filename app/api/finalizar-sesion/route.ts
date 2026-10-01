@@ -41,9 +41,10 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ resumen: sesion.resumen, documentId: sesion.document_id })
   }
 
-  const [{ data: lineas }, { data: preguntas }, { data: settings }] = await Promise.all([
+  const [{ data: lineas }, { data: preguntas }, { data: conceptos }, { data: settings }] = await Promise.all([
     supabase.from('transcripciones').select('texto, timestamp_segundos').eq('sesion_id', sesionId).order('timestamp_segundos'),
     supabase.from('preguntas_sesion').select('pregunta, respuesta, timestamp_segundos').eq('sesion_id', sesionId).order('timestamp_segundos'),
+    supabase.from('contextos').select('concepto, explicacion, timestamp_segundos').eq('sesion_id', sesionId).order('timestamp_segundos'),
     supabase.from('user_settings').select('groq_api_key, gemini_api_key').eq('user_id', user.id).single(),
   ])
   const keys = {
@@ -63,7 +64,7 @@ export async function POST(req: NextRequest) {
   let resumen = sesion.resumen as string | null
   if (!resumen) {
     try {
-      resumen = (await callAI(buildSummaryPrompt(titulo, lineas, preguntas ?? []), keys)).trim()
+      resumen = (await callAI(buildSummaryPrompt(titulo, lineas, preguntas ?? [], conceptos ?? []), keys)).trim()
     } catch (e) {
       console.error('Error generando resumen:', e)
       return NextResponse.json({ error: 'No se pudo generar el resumen. Probá de nuevo en un momento.' }, { status: 502 })
@@ -86,7 +87,7 @@ export async function POST(req: NextRequest) {
     await processDocument({
       documentId: doc.id,
       sourceType: 'sesion',
-      content: buildSessionDocument(titulo, sesion.fecha, resumen, lineas, preguntas ?? []),
+      content: buildSessionDocument(titulo, sesion.fecha, resumen, lineas, preguntas ?? [], conceptos ?? []),
       keys,
     })
   } catch (e) {

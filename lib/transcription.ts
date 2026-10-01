@@ -33,9 +33,11 @@ const normalize = (t: string) => t.toLowerCase().replace(/[^a-z0-9áéíóúüñ
 
 // Arma el texto final a partir de los segmentos, descartando silencio y alucinaciones.
 // `previousText` es lo último transcripto: con música o silencio Whisper a veces
-// repite en bucle el contexto que le pasamos ("D. Rompe las cifras." ×3).
-export function cleanTranscript(segments: WhisperSegment[], previousText = ''): string {
+// repite en bucle el contexto que le pasamos ("D. Rompe las cifras." ×3), o
+// devuelve el vocabulario que le dimos como si alguien lo hubiera dicho.
+export function cleanTranscript(segments: WhisperSegment[], previousText = '', vocabulario = ''): string {
   const previous = normalize(previousText)
+  const vocab = normalize(vocabulario)
   const kept: string[] = []
   for (const segment of segments) {
     const text = segment.text.trim()
@@ -45,6 +47,7 @@ export function cleanTranscript(segments: WhisperSegment[], previousText = ''): 
     if (HALLUCINATIONS.some(re => re.test(text))) continue
     // Repite lo anterior (del tramo previo o del mismo tramo)
     if (norm && (previous.endsWith(norm) || normalize(kept.at(-1) ?? '') === norm)) continue
+    if (norm && vocab.includes(norm)) continue
     kept.push(text)
   }
   return kept.join(' ').replace(/\s+/g, ' ').trim()
@@ -58,11 +61,15 @@ export interface TranscriptionResult {
 // Transcribe un tramo de audio. `previousText` son las últimas palabras ya
 // transcriptas: Whisper las usa como contexto para no cortar frases ni cambiar
 // la ortografía de los nombres entre un tramo y el siguiente.
+// `vocabulario` (título + conceptos detectados) le enseña cómo se escriben los
+// términos del tema: "Gentoo" y no "guento", "Claude Code" y no "Cloud Code".
 export async function transcribeAudio(
   audio: File,
   previousText: string,
-  keys?: UserKeys
+  keys?: UserKeys,
+  vocabulario = ''
 ): Promise<TranscriptionResult> {
+  const prompt = [vocabulario.trim(), previousText.slice(-200).trim()].filter(Boolean).join('. ')
   const groq = new Groq({ apiKey: keys?.groq || process.env.GROQ_API_KEY! })
   let lastError: unknown
 
@@ -74,12 +81,12 @@ export async function transcribeAudio(
         language: 'es',
         response_format: 'verbose_json',
         temperature: 0,
-        ...(previousText && { prompt: previousText.slice(-200) }),
+        ...(prompt && { prompt }),
       })
       // verbose_json trae segments y duration, pero el SDK tipa solo `text`
       const verbose = response as unknown as { segments?: WhisperSegment[]; duration?: number }
       return {
-        texto: cleanTranscript(verbose.segments ?? [{ text: response.text, no_speech_prob: 0 }], previousText),
+        texto: cleanTranscript(verbose.segments ?? [{ text: response.text, no_speech_prob: 0 }], previousText, vocabulario),
         duracion_segundos: Math.round(verbose.duration ?? 0),
       }
     } catch (error) {

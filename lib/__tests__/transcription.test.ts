@@ -69,3 +69,24 @@ describe('cleanTranscript — repeticiones de Whisper', () => {
     expect(text).toBe('Eso fue dominio 2 completo.')
   })
 })
+
+describe('cleanTranscript — vocabulario', () => {
+
+  test('descarta un segmento que solo repite el vocabulario', () => {
+    const text = cleanTranscript(
+      [{ text: 'K-Nearest Neighbors, Gentoo.', no_speech_prob: 0.2 }],
+      '',
+      'Clase 8 de Machine Learning. K-Nearest Neighbors, Gentoo, matriz de confusión'
+    )
+    expect(text).toBe('')
+  })
+
+  test('mantiene frases reales que usan palabras del vocabulario', () => {
+    const text = cleanTranscript(
+      [{ text: 'El pingüino Gentoo tiene la aleta más larga.', no_speech_prob: 0.05 }],
+      '',
+      'K-Nearest Neighbors, Gentoo'
+    )
+    expect(text).toBe('El pingüino Gentoo tiene la aleta más larga.')
+  })
+})

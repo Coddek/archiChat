@@ -18,6 +18,7 @@ export async function POST(req: NextRequest) {
     sesionId:          form.get('sesion_id'),
     timestampSegundos: form.get('timestamp_segundos'),
     textoPrevio:       form.get('texto_previo') ?? '',
+    vocabulario:       form.get('vocabulario') ?? '',
     audio:             form.get('audio'),
   })
   if (!validation.success) {
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     )
   }
-  const { sesionId, timestampSegundos, textoPrevio, audio } = validation.data
+  const { sesionId, timestampSegundos, textoPrevio, vocabulario, audio } = validation.data
 
   const { data: settings } = await supabase
     .from('user_settings')
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
   try {
     result = await transcribeAudio(audio, textoPrevio, {
       groq: settings?.groq_api_key || undefined,
-    })
+    }, vocabulario)
   } catch (error) {
     console.error('Error transcribiendo:', error)
     const status = (error as { status?: number }).status === 429 ? 429 : 502

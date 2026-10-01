@@ -4,17 +4,18 @@
 // transcripción. Las sesiones sin resumen (viejas o que fallaron) se pueden
 // terminar de procesar desde acá.
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { ArrowLeft, Mic, Plus, Clock, ChevronDown, Loader2, Trash2, Sparkles, MessageSquare } from "lucide-react";
+import { ArrowLeft, Mic, Plus, Clock, ChevronDown, Loader2, Trash2, Sparkles, MessageSquare, Download, Lightbulb } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { formatTime } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { SessionSummary } from "@/components/sesion/SessionSummary";
+import { buildSessionDocument } from "@/lib/sesion";
 
 type Sesion = {
   id: string;
@@ -23,7 +24,18 @@ type Sesion = {
   estado: "activa" | "finalizada";
   resumen: string | null;
   document_id: string | null;
+  contextos: { count: number }[];
 };
+
+// "Hoy", "Ayer" o la fecha, para agrupar la lista
+function grupoFecha(fecha: string) {
+  const d = new Date(fecha);
+  const hoy = new Date();
+  const ayer = new Date(); ayer.setDate(hoy.getDate() - 1);
+  if (d.toDateString() === hoy.toDateString()) return "Hoy";
+  if (d.toDateString() === ayer.toDateString()) return "Ayer";
+  return d.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" });
+}
 
 type Linea = { texto: string; timestamp_segundos: number };
 
@@ -40,7 +52,7 @@ export default function SesionesPage() {
   useEffect(() => {
     supabase
       .from("sesiones")
-      .select("id, titulo, fecha, estado, resumen, document_id")
+      .select("id, titulo, fecha, estado, resumen, document_id, contextos(count)")
       .order("fecha", { ascending: false })
       .then(({ data, error }) => {
         if (error) toast.error("Error al cargar las sesiones");
@@ -74,6 +86,23 @@ export default function SesionesPage() {
     else setSesiones(prev => prev.filter(x => x.id !== s.id));
   }
 
+  // Descarga la sesión completa en Markdown: es el mismo texto que usa el chat
+  async function exportar(s: Sesion) {
+    const [{ data: ls }, { data: preguntas }, { data: conceptos }] = await Promise.all([
+      supabase.from("transcripciones").select("texto, timestamp_segundos").eq("sesion_id", s.id).order("timestamp_segundos"),
+      supabase.from("preguntas_sesion").select("pregunta, respuesta, timestamp_segundos").eq("sesion_id", s.id).order("timestamp_segundos"),
+      supabase.from("contextos").select("concepto, explicacion, timestamp_segundos").eq("sesion_id", s.id).order("timestamp_segundos"),
+    ]);
+    const titulo = s.titulo || "Sesión";
+    const md = buildSessionDocument(titulo, s.fecha, s.resumen ?? "", ls ?? [], preguntas ?? [], conceptos ?? []);
+    const url = URL.createObjectURL(new Blob([md], { type: "text/markdown;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${titulo.replace(/[\\/:*?"<>|]/g, "-")}.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   // Resumen + documento para sesiones que no lo tienen
   async function generarResumen(s: Sesion) {
     setProcesando(s.id);
@@ -88,7 +117,7 @@ export default function SesionesPage() {
       if (data.error) toast.warning(data.error);
       if (!data.resumen) toast.info("La sesión no tiene transcripción para resumir");
       setSesiones(prev => prev.map(x => x.id === s.id
-        ? { ...x, estado: "finalizada", resumen: data.resumen, document_id: data.documentId }
+        ? { ...x, estado: "finalizada" as const, resumen: data.resumen, document_id: data.documentId }
         : x));
     } catch (e) {
       toast.error((e as Error).message);
@@ -142,7 +171,13 @@ export default function SesionesPage() {
         ) : (
           <div className="space-y-3">
             {sesiones.map((s, i) => (
-              <motion.div key={s.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+              <Fragment key={s.id}>
+              {(i === 0 || grupoFecha(sesiones[i - 1].fecha) !== grupoFecha(s.fecha)) && (
+                <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground pt-4 first:pt-0 first-letter:uppercase">
+                  {grupoFecha(s.fecha)}
+                </h2>
+              )}
+              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
                 className="rounded-[20px] border border-border/40 bg-card/50 backdrop-blur-md overflow-hidden">
                 <div onClick={() => toggle(s.id)} className="group flex items-center gap-4 p-5 cursor-pointer hover:bg-primary/[0.03] transition-colors">
                   <div className="p-2.5 rounded-xl bg-primary/10"><Mic className="w-4 h-4 text-primary" /></div>
@@ -150,7 +185,10 @@ export default function SesionesPage() {
                     <div className="font-bold tracking-tight truncate">{s.titulo}</div>
                     <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1">
                       <Clock className="w-3 h-3" />
-                      {new Date(s.fecha).toLocaleString("es-AR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })}
+                      {new Date(s.fecha).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
+                      {(s.contextos?.[0]?.count ?? 0) > 0 && (
+                        <span className="flex items-center gap-1 ml-2"><Lightbulb className="w-3 h-3" />{s.contextos[0].count} conceptos</span>
+                      )}
                     </div>
                   </div>
                   {s.estado === "activa" && (
@@ -189,6 +227,10 @@ export default function SesionesPage() {
                       </Button>
                     )}
 
+                    <Button variant="ghost" size="sm" onClick={() => exportar(s)} className="rounded-xl gap-2 text-muted-foreground -ml-2">
+                      <Download className="w-4 h-4" /> Descargar sesión (.md)
+                    </Button>
+
                     {/* Transcripción completa */}
                     <button onClick={() => setVerTranscripcion(v => !v)} className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground hover:text-foreground transition-colors">
                       <ChevronDown className={`w-3.5 h-3.5 transition-transform ${verTranscripcion ? "rotate-180" : ""}`} />
@@ -211,6 +253,7 @@ export default function SesionesPage() {
                   </div>
                 )}
               </motion.div>
+              </Fragment>
             ))}
           </div>
         )}

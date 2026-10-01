@@ -14,16 +14,35 @@ export interface Transcripcion {
   timestampSegundos: number;
 }
 
-const RETRY_DELAY_MS = 3_000;
+// Esperas entre reintentos (sin internet, límite de Groq, error del servidor):
+// ~2,5 minutos en total antes de dar el tramo por perdido
+const RETRY_DELAYS_MS = [3_000, 6_000, 12_000, 24_000, 48_000, 60_000];
+
+class TranscripcionError extends Error {
+  constructor(message: string, readonly reintentable: boolean) { super(message); }
+}
 
 function extensionFor(mimeType: string) {
   return mimeType.includes("mp4") ? "mp4" : "webm";
 }
 
-export function useTranscription(getSesionId: () => string | null) {
+const esperar = (ms: number) => new Promise(r => setTimeout(r, ms));
+
+// Si no hay internet, espera a que vuelva
+function esperarConexion() {
+  if (navigator.onLine) return Promise.resolve();
+  return new Promise<void>(resolve => window.addEventListener("online", () => resolve(), { once: true }));
+}
+
+export function useTranscription(
+  getSesionId: () => string | null,
+  getVocabulario: () => string = () => "",
+) {
   const [transcripciones, setTranscripciones] = useState<Transcripcion[]>([]);
   const [pendientes, setPendientes] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [aviso, setAviso] = useState<string | null>(null);   // reintentando, sin conexión…
+  const [silencios, setSilencios] = useState(0);
 
   const queueRef   = useRef<AudioChunk[]>([]);
   const runningRef = useRef(false);
@@ -37,11 +56,21 @@ export function useTranscription(getSesionId: () => string | null) {
     form.append("sesion_id", sesionId);
     form.append("timestamp_segundos", String(chunk.inicioSegundos));
     form.append("texto_previo", lastTextRef.current.slice(-200));
-    const res = await fetch("/api/transcribir", { method: "POST", body: form });
+    form.append("vocabulario", getVocabulario().slice(0, 300));
+
+    let res: Response;
+    try {
+      res = await fetch("/api/transcribir", { method: "POST", body: form });
+    } catch {
+      throw new TranscripcionError("Sin conexión", true);
+    }
     const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.error || "Error al transcribir");
+    if (!res.ok) {
+      // 429 (límite) y 5xx se reintentan; 4xx (datos inválidos, sesión ajena) no
+      throw new TranscripcionError(data.error || "Error al transcribir", res.status === 429 || res.status >= 500);
+    }
     return data.texto as string;
-  }, []);
+  }, [getVocabulario]);
 
   const processQueue = useCallback(async () => {
     if (runningRef.current) return;
@@ -53,14 +82,24 @@ export function useTranscription(getSesionId: () => string | null) {
       if (!sesionId) break;
 
       let texto: string | null = null;
-      // Un reintento: los errores de red o de límite suelen ser momentáneos
-      for (let intento = 0; intento < 2 && texto === null; intento++) {
+      for (let intento = 0; texto === null; intento++) {
         try {
+          await esperarConexion();
           texto = await send(chunk, sesionId);
           setError(null);
+          setAviso(null);
         } catch (e) {
-          if (intento === 0) await new Promise(r => setTimeout(r, RETRY_DELAY_MS));
-          else setError(`Se perdió un tramo de audio (${(e as Error).message})`);
+          const err = e as TranscripcionError;
+          if (!err.reintentable || intento >= RETRY_DELAYS_MS.length) {
+            setAviso(null);
+            setError(`Se perdió un tramo de audio (${err.message})`);
+            break;
+          }
+          const espera = RETRY_DELAYS_MS[intento];
+          setAviso(navigator.onLine
+            ? `${err.message}. Reintentando en ${espera / 1000} s… (no se pierde nada)`
+            : "Sin conexión a internet. Se transcribe todo cuando vuelva.");
+          await esperar(espera);
         }
       }
 
@@ -78,6 +117,11 @@ export function useTranscription(getSesionId: () => string | null) {
   }, [getSesionId, send]);
 
   const encolar = useCallback((chunk: AudioChunk) => {
+    // Silencio (video en pausa, recreo): no se gasta cupo de Whisper
+    if (chunk.silencioso) {
+      setSilencios(n => n + 1);
+      return;
+    }
     queueRef.current.push(chunk);
     setPendientes(queueRef.current.length);
     processQueue();
@@ -95,7 +139,12 @@ export function useTranscription(getSesionId: () => string | null) {
     setTranscripciones([]);
     setPendientes(0);
     setError(null);
+    setAviso(null);
+    setSilencios(0);
   }, []);
 
-  return { transcripciones, pendientes, procesando: pendientes > 0, error, encolar, esperarCola, reiniciar };
+  return {
+    transcripciones, pendientes, procesando: pendientes > 0, error, aviso, silencios,
+    encolar, esperarCola, reiniciar,
+  };
 }

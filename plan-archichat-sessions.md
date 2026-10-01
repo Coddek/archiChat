@@ -289,9 +289,9 @@ Reproducir un video de YouTube en otra pestaña durante 2 minutos, capturar esa 
 
 ### 2.1 — API Route para análisis de conceptos
 
-- [ ] Crear `/app/api/analizar-concepto/route.ts` — con **Gemini Flash-Lite** (`gemini-3.5-flash-lite`, ver límites arriba) y respuesta en JSON (`responseMimeType: 'application/json'`)
-- [ ] Recibe: `{ texto: string, contexto_previo: string }`
-- [ ] Prompt al LLM:
+- [x] Crear `/app/api/analizar-concepto/route.ts` — con **Gemini Flash-Lite** (`gemini-3.5-flash-lite`, ver límites arriba) y respuesta en JSON (`responseMimeType: 'application/json'`)
+- [x] Recibe: `{ texto: string, contexto_previo: string }`
+- [x] Prompt al LLM:
   ```
   Sos un asistente que ayuda a entender conversaciones en tiempo real.
   
@@ -312,31 +312,33 @@ Reproducir un video de YouTube en otra pestaña durante 2 minutos, capturar esa 
   
   Solo respondé el JSON, nada más.
   ```
-- [ ] Parsear la respuesta JSON
-- [ ] Devolver `{ encontrado: boolean, concepto?: string, explicacion?: string }`
+- [x] Parsear la respuesta JSON
+- [x] Devolver `{ conceptos: [{ concepto, explicacion }] }` (hasta 2 por tanda; se guardan en `contextos` desde la API)
+- [x] Gemini Flash-Lite con JSON → respaldo `gpt-oss-20b` (`callJSON` en `lib/ai.ts`)
+- [x] Probado con la clase real: "distancia euclidiana", "multiclase", "codificación" en ~1,5 s, sin repetir ✅
 
 **Por qué este prompt específico:**
 Pedimos JSON estricto porque parsear texto libre es frágil. El LLM puede alucinar formato si no le das una estructura exacta. Con `{"encontrado": false}` nos ahorramos procesamiento cuando no hay nada relevante.
 
 ### 2.2 — Hook useContextDetection
 
-- [ ] Recibe texto nuevo cada vez que llega una transcripción
-- [ ] Acumula texto hasta tener ~50 palabras o 20 segundos (lo que llegue primero) — con chunks de 10 seg son 2 chunks
-- [ ] Pasarle al LLM la lista de conceptos ya detectados para que no repita
-- [ ] Manda el lote a `/api/analizar-concepto` con los últimos 200 palabras como contexto previo
-- [ ] Si encuentra concepto: guarda en tabla `contextos` de Supabase
-- [ ] Exportar: `{ contextos, analizando }`
+- [x] Recibe texto nuevo cada vez que llega una transcripción
+- [x] Acumula texto hasta tener ~50 palabras o 20 segundos (lo que llegue primero) — con chunks de 10 seg son 2 chunks
+- [x] Pasarle al LLM la lista de conceptos ya detectados para que no repita
+- [x] Manda el lote a `/api/analizar-concepto` con los últimos 200 palabras como contexto previo
+- [x] Si encuentra concepto: guarda en tabla `contextos` de Supabase
+- [x] Exportar: `{ contextos, analizando }`
 
 **Por qué 50 palabras o 20 segundos:**
 En 20 segundos tenemos 2 chunks = suficiente texto para que el LLM detecte algo con sentido. Analizar cada chunk suelto da poco contexto y duplica los requests.
 
 ### 2.3 — Panel de contexto en la UI
 
-- [ ] Panel lateral (o debajo en mobile) que muestra los contextos detectados
-- [ ] Cada contexto aparece con: nombre del concepto en negrita + explicación
-- [ ] Animación suave cuando aparece un concepto nuevo (no intrusiva)
-- [ ] Badge contador: "3 conceptos detectados"
-- [ ] Los conceptos más recientes aparecen arriba
+- [x] Panel lateral (o debajo en mobile) que muestra los contextos detectados
+- [x] Cada contexto aparece con: nombre del concepto en negrita + explicación
+- [x] Animación suave cuando aparece un concepto nuevo (no intrusiva): pestaña "Conceptos" en la página y en la ventana flotante, con punto de aviso si llega uno mientras estás en el chat
+- [x] Badge contador: "3 conceptos detectados"
+- [x] Los conceptos más recientes aparecen arriba
 
 ### 2.4 — Pregunta rápida en vivo
 
@@ -363,7 +365,7 @@ En 20 segundos tenemos 2 chunks = suficiente texto para que el LLM detecte algo 
 
 > 🐛 Bug (prueba 2026-09-30): Whisper repitió "D. Rompe las cifras." 3 veces (08:10–08:30, con música/silencio) → se descartan tramos que repiten el final del anterior y segmentos con `compression_ratio` > 2,4 (+4 tests) ✅
 > 🐛 Bug: "¿qué me perdí desde mi última pregunta?" respondía sobre otro minuto → cada pregunta viaja con el minuto en que se hizo ✅ (probado con la transcripción real: resume de 01:00 a 05:00)
-> 💡 Mejora futura: palabras clave al iniciar la sesión, pasadas a Whisper como contexto, para que escriba bien términos técnicos ("Claude Code" y no "Cloud Code", "Glob" y no "Glove")
+> 💡 Palabras clave para Whisper → hecho **automático**, sin que el usuario escriba nada: el título (si lo escribió) + los conceptos detectados (bien escritos) se pasan a Whisper como vocabulario ✅. Se descartan segmentos que solo repiten el vocabulario (+2 tests)
 
 > 🐛 Bug (prueba 2026-09-30): dejó de transcribir en el minuto 5:20 con la pestaña oculta → freno de temporizadores de Chrome (se arregla con el Worker de arriba). Al finalizar tiró `stopTickerRef.current.call is not a function`: fue la recarga en caliente de Next.js mientras se editaba el hook en plena sesión (solo en desarrollo). Recargar la página antes de probar.
 
@@ -383,11 +385,11 @@ Hablar sobre un tema técnico (ej: "vamos a usar pgvector para búsqueda semánt
 
 ### 3.1 — API Route para resumen
 
-- [ ] Crear `/app/api/resumir-sesion/route.ts`
-- [ ] Recibe: `{ sesion_id: string }`
-- [ ] Busca todas las transcripciones de esa sesión en Supabase
-- [ ] Concatena el texto en orden cronológico
-- [ ] Prompt al LLM:
+- [x] Crear `/app/api/finalizar-sesion/route.ts` (resumen + documento en un solo paso; sirve también para sesiones viejas)
+- [x] Recibe: `{ sesion_id: string }`
+- [x] Busca todas las transcripciones de esa sesión en Supabase
+- [x] Concatena el texto en orden cronológico
+- [x] Prompt al LLM:
   ```
   Sos un asistente que crea resúmenes de reuniones y clases.
   
@@ -410,18 +412,22 @@ Hablar sobre un tema técnico (ej: "vamos a usar pgvector para búsqueda semánt
   ## Términos importantes mencionados
   - [lista de términos técnicos que aparecieron]
   ```
-- [ ] Guardar el resumen en `sesiones.resumen`
-- [ ] Devolver el resumen
+- [x] Guardar el resumen en `sesiones.resumen`
+- [x] Devolver el resumen
 
 **Por qué guardamos el resumen en la tabla sesiones:**
 El resumen es un dato de la sesión, no un mensaje aparte. Si el usuario cierra la app y vuelve, el resumen ya está ahí sin tener que regenerarlo.
 
 ### 3.2 — UI de resumen
 
-- [ ] Cuando el usuario toca "Finalizar", mostrar loader mientras se genera el resumen
-- [ ] Mostrar el resumen en formato markdown renderizado
-- [ ] Botón "Copiar resumen"
-- [ ] Botón "Ver transcripción completa" (accordion que expande)
+- [x] Cuando el usuario toca "Finalizar", mostrar loader mientras se genera el resumen
+- [x] Mostrar el resumen en formato markdown renderizado
+- [x] Botón "Copiar resumen"
+- [x] Botón "Ver transcripción completa" (accordion que expande)
+
+- [x] Extra: sección "Para repasar" armada con las preguntas en vivo del usuario
+- [x] Probado por script con el video de 9 min: resumen en 3 s con minutos ✅
+- [ ] Probar en producción con la clase del 2026-09-30 (/sesiones → "Generar resumen y preparar chat")
 
 ### ✅ Criterio de éxito Fase 3
 Después de una sesión de 5 minutos sobre cualquier tema, el resumen captura los puntos principales y los términos técnicos mencionados.
@@ -434,16 +440,16 @@ Después de una sesión de 5 minutos sobre cualquier tema, el resumen captura lo
 
 ### 4.1 — Página de historial
 
-- [ ] Listar sesiones agrupadas por fecha
-- [ ] Cada sesión muestra: título, fecha, duración, cantidad de conceptos detectados
-- [ ] Click en una sesión → ver detalle completo
+- [x] Listar sesiones agrupadas por fecha (Hoy, Ayer, fecha)
+- [x] Cada sesión muestra: título, hora, cantidad de conceptos detectados, si está en el chat (la duración queda pendiente: no hay columna)
+- [x] Click en una sesión → resumen, chat, descarga y transcripción (desplegable en la misma lista)
 
 ### 4.2 — Página de detalle de sesión
 
-- [ ] Resumen arriba
-- [ ] Transcripción completa con timestamps
-- [ ] Panel de conceptos detectados durante esa sesión
-- [ ] Opción de exportar como texto plano o markdown
+- [x] Resumen arriba
+- [x] Transcripción completa con timestamps
+- [x] Conceptos detectados: incluidos en el resumen, en el documento del chat y en el .md exportado
+- [x] Exportar como markdown (mismo texto que se indexa para el chat)
 
 ### ✅ Criterio de éxito Fase 4
 Poder revisar una sesión de hace 3 días con toda la transcripción y los conceptos detectados.
@@ -462,19 +468,22 @@ Poder revisar una sesión de hace 3 días con toda la transcripción y los conce
 - [x] Verificar el resultado: check, columna y política OK en el editor + tablas accesibles por API
 
 ### 4.5.2 — Indexación al finalizar
-- [ ] Guardar también las preguntas en vivo con sus respuestas (hoy se pierden al recargar) e incluirlas en el documento: así el chat principal sabe qué no entendió el usuario
-- [ ] Al finalizar la sesión (después del resumen): crear un registro en `documents` con `source_type = 'sesion'`, título = título de la sesión
-- [ ] Texto a indexar: resumen + transcripción con marcas de tiempo (`[12:30] ...`) + conceptos detectados
-- [ ] Reutilizar `processDocument` de `lib/pipeline.ts` (chunking + embeddings) — agregar el caso `'sesion'` que usa el texto tal cual
-- [ ] Guardar `sesiones.document_id`
+- [x] Guardar también las preguntas en vivo con sus respuestas (hoy se pierden al recargar) e incluirlas en el documento: así el chat principal sabe qué no entendió el usuario
+- [x] Al finalizar la sesión (después del resumen): crear un registro en `documents` con `source_type = 'sesion'`, título = título de la sesión
+- [x] Texto a indexar: resumen + transcripción con marcas de tiempo (`[12:30] ...`) + preguntas en vivo (los conceptos se suman cuando exista la Fase 2.1)
+- [x] Reutilizar `processDocument` de `lib/pipeline.ts` (chunking + embeddings) — agregar el caso `'sesion'` que usa el texto tal cual
+- [x] Guardar `sesiones.document_id`
 
 ### 4.5.3 — UI
-- [ ] En el dashboard, ícono distinto para documentos de tipo sesión (ej: micrófono)
-- [ ] Desde el detalle de sesión: botón "Chatear con esta sesión" → `/chat/[document_id]`
-- [ ] Las citas del chat muestran el minuto del fragmento
+- [x] En el dashboard, ícono distinto para documentos de tipo sesión (ej: micrófono)
+- [x] Desde el detalle de sesión: botón "Chatear con esta sesión" → `/chat/[document_id]`
+- [x] Las citas del chat muestran el minuto del fragmento (las marcas `[mm:ss]` quedan dentro de cada fragmento)
 
 **Por qué reutilizar `documents` en vez de un chat aparte:**
 Todo el pipeline (chunks, embeddings, `match_chunks`, fallback Groq→Gemini, búsqueda web) ya existe y funciona. Una sesión es "un documento hecho de audio".
+
+- [x] Probado por script: video de 9 min → 10 fragmentos en 7 s; "¿qué dijo sobre el scope de MCP?" → responde con 69% de confianza ✅
+- [x] Función con `maxDuration = 300` (una clase de 2 h son ~100 fragmentos)
 
 ### ✅ Criterio de éxito Fase 4.5
 Terminar una clase de 20 min, ir al chat normal y preguntar "¿qué dijo sobre X?" → responde citando el fragmento con su minuto.
@@ -490,14 +499,14 @@ Terminar una clase de 20 min, ir al chat normal y preguntar "¿qué dijo sobre X
 - [ ] Decidir política de cuota compartida: si el usuario no tiene key propia, ¿límite de X minutos de sesión por día?
 - [x] Modo oscuro (las páginas nuevas usan el tema de la app; la ventana flotante copia el tema)
 - [ ] Mobile responsive — que funcione bien en celu (en celular solo existe la fuente micrófono, ver tabla de compatibilidad en 1.3)
-- [ ] En iOS: aviso visible "mantené la pantalla encendida y Safari abierto" + pausar sesión automáticamente con `visibilitychange` cuando la página pasa a segundo plano
+- [x] En iOS: aviso visible "mantené la pantalla encendida y Safari abierto" + pausar sesión automáticamente con `visibilitychange` cuando la página pasa a segundo plano
 
 ### 5.2 — Manejo de errores robusto
 
-- [ ] Si Groq falla: reintentar automáticamente con backoff exponencial
-- [ ] Si se alcanza el rate limit: pausar y avisar al usuario cuántos segundos esperar
-- [ ] Si el usuario pierde conexión a internet: encolar chunks y reenviar cuando vuelve
-- [ ] Si el audio es silencio: no mandar el chunk (detectar con análisis de energía del audio)
+- [x] Si Groq falla: reintentar automáticamente con backoff exponencial (3, 6, 12, 24, 48, 60 s; ~2,5 min antes de dar el tramo por perdido)
+- [x] Si se alcanza el rate limit: avisar "Reintentando en N s… (no se pierde nada)" en la página y en la ventana flotante
+- [x] Si el usuario pierde conexión a internet: los tramos esperan en cola y se mandan cuando vuelve (evento `online`)
+- [x] Si el audio es silencio: no mandar el chunk (medidor RMS cada 250 ms con AnalyserNode; umbral ~-48 dB; si el medidor no anda, se manda igual)
 
 **Por qué detectar silencio:**
 Si mandás silencio a Whisper igual te cobra 10 segundos mínimos. En una reunión hay pausas. Detectar que el audio tiene energía por debajo de un umbral ahorra requests.

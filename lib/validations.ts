@@ -63,6 +63,8 @@ export const TranscripcionSchema = z.object({
   sesionId: z.string().uuid('Sesión inválida'),
   timestampSegundos: z.coerce.number().int().min(0),
   textoPrevio: z.string().max(1000).default(''),
+  // Título de la sesión + conceptos detectados: ayuda a Whisper a escribir bien los términos
+  vocabulario: z.string().max(300).default(''),
   audio: z
     .instanceof(File, { message: 'Falta el audio' })
     .refine(f => f.size > 0, 'El audio está vacío')
@@ -83,4 +85,14 @@ export const PreguntaSesionSchema = z.object({
     .default([]),
   // Minuto de la sesión en que se hace la pregunta
   segundoActual: z.number().int().min(0).default(0),
+})
+
+// Schema para la detección automática de conceptos durante una sesión
+export const AnalizarConceptoSchema = z.object({
+  sesionId: z.string().uuid('Sesión inválida'),
+  texto: z.string().min(1).max(4000),
+  contextoPrevio: z.string().max(4000).default(''),
+  // Conceptos ya explicados en la sesión, para no repetirlos
+  conocidos: z.array(z.string().max(100)).max(100).default([]),
+  timestampSegundos: z.number().int().min(0),
 })

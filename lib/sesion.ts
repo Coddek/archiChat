@@ -8,6 +8,12 @@ export interface LineaTranscripcion {
   timestamp_segundos: number
 }
 
+export interface ConceptoSesion {
+  concepto: string
+  explicacion: string
+  timestamp_segundos: number
+}
+
 export interface PreguntaSesion {
   pregunta: string
   respuesta: string
@@ -17,6 +23,9 @@ export interface PreguntaSesion {
 const transcripcionConMinutos = (lineas: LineaTranscripcion[]) =>
   lineas.map(l => `[${formatTime(l.timestamp_segundos)}] ${l.texto}`).join('\n')
 
+const conceptosConMinutos = (conceptos: ConceptoSesion[]) =>
+  conceptos.map(c => `[${formatTime(c.timestamp_segundos)}] **${c.concepto}**: ${c.explicacion}`).join('\n')
+
 const preguntasConMinutos = (preguntas: PreguntaSesion[]) =>
   preguntas
     .map(p => `[${formatTime(p.timestamp_segundos)}] Pregunta: ${p.pregunta}\nRespuesta: ${p.respuesta}`)
@@ -24,7 +33,12 @@ const preguntasConMinutos = (preguntas: PreguntaSesion[]) =>
 
 // Prompt del resumen final. Las preguntas en vivo muestran qué le costó entender
 // al usuario: se usan para armar la sección "Para repasar".
-export function buildSummaryPrompt(titulo: string, lineas: LineaTranscripcion[], preguntas: PreguntaSesion[]) {
+export function buildSummaryPrompt(
+  titulo: string,
+  lineas: LineaTranscripcion[],
+  preguntas: PreguntaSesion[],
+  conceptos: ConceptoSesion[] = []
+) {
   return `Sos un asistente que crea resúmenes de clases, reuniones y videos.
 La transcripción es automática: puede tener errores en nombres técnicos (por ejemplo "Cloud Code" en vez de "Claude Code"). Si el error es obvio por el contexto, usá el nombre correcto.
 
@@ -32,7 +46,7 @@ TÍTULO: ${titulo}
 
 TRANSCRIPCIÓN COMPLETA (con minutos):
 ${transcripcionConMinutos(lineas)}
-${preguntas.length > 0 ? `\nPREGUNTAS QUE HIZO EL USUARIO DURANTE LA SESIÓN (muestran qué le costó entender):\n${preguntasConMinutos(preguntas)}\n` : ''}
+${preguntas.length > 0 ? `\nPREGUNTAS QUE HIZO EL USUARIO DURANTE LA SESIÓN (muestran qué le costó entender):\n${preguntasConMinutos(preguntas)}\n` : ''}${conceptos.length > 0 ? `\nCONCEPTOS DETECTADOS DURANTE LA SESIÓN (nombres bien escritos):\n${conceptosConMinutos(conceptos)}\n` : ''}
 Creá un resumen en markdown, en español, con este formato exacto:
 
 ## Resumen general
@@ -60,7 +74,8 @@ export function buildSessionDocument(
   fecha: string,
   resumen: string,
   lineas: LineaTranscripcion[],
-  preguntas: PreguntaSesion[]
+  preguntas: PreguntaSesion[],
+  conceptos: ConceptoSesion[] = []
 ) {
   const cuando = new Date(fecha).toLocaleString('es-AR', {
     day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
@@ -73,5 +88,5 @@ ${resumen}
 
 ## Transcripción completa
 ${transcripcionConMinutos(lineas)}
-${preguntas.length > 0 ? `\n## Preguntas hechas durante la sesión\n${preguntasConMinutos(preguntas)}\n` : ''}`
+${conceptos.length > 0 ? `\n## Conceptos explicados durante la sesión\n${conceptosConMinutos(conceptos)}\n` : ''}${preguntas.length > 0 ? `\n## Preguntas hechas durante la sesión\n${preguntasConMinutos(preguntas)}\n` : ''}`
 }

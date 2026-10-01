@@ -23,8 +23,9 @@ import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useAudioCapture, getAudioSupport, type AudioSource, type AudioSupport } from "@/hooks/useAudioCapture";
 import { useTranscription } from "@/hooks/useTranscription";
 import { useLiveQuestions } from "@/hooks/useLiveQuestions";
+import { useContextDetection } from "@/hooks/useContextDetection";
 import { useDocumentPiP } from "@/hooks/useDocumentPiP";
-import { LiveChat } from "@/components/sesion/LiveChat";
+import { LiveSidePanel } from "@/components/sesion/LiveSidePanel";
 import { FloatingPanel } from "@/components/sesion/FloatingPanel";
 import { SessionSummary } from "@/components/sesion/SessionSummary";
 
@@ -55,13 +56,38 @@ export default function SesionPage() {
   const resumenRef = useRef<HTMLDivElement>(null);
 
   const getSesionId = useCallback(() => sesionIdRef.current, []);
-  const transcripcion = useTranscription(getSesionId);
+  // Vocabulario para Whisper: el título (si lo escribió el usuario) y los
+  // conceptos detectados, bien escritos. Así mejora a medida que avanza la sesión.
+  const vocabularioRef = useRef("");
+  const getVocabulario = useCallback(() => vocabularioRef.current, []);
+  const transcripcion = useTranscription(getSesionId, getVocabulario);
   const pip = useDocumentPiP();
   const captura = useAudioCapture({
     onChunk: transcripcion.encolar,
     onSourceEnded: () => toast.warning("Se dejó de compartir el audio. Tocá Reanudar para volver a elegir la pestaña."),
   });
   const enVivo = useLiveQuestions(getSesionId, captura.elapsedSeconds);
+  const deteccion = useContextDetection(getSesionId, transcripcion.transcripciones, fase === "en-curso");
+
+  useEffect(() => {
+    const tituloUtil = titulo.startsWith("Sesión del ") ? "" : titulo;
+    vocabularioRef.current = [tituloUtil, ...deteccion.nombres].filter(Boolean).join(", ").slice(0, 300);
+  }, [titulo, deteccion.nombres]);
+
+  // En iPhone, Safari congela la página al pasar a segundo plano: se pausa
+  // a propósito para que no quede un hueco sin aviso
+  const { pausar: pausarCaptura } = captura;
+  useEffect(() => {
+    if (!soporte?.isIOS || captura.estado !== "grabando") return;
+    const onHide = () => {
+      if (document.hidden) {
+        pausarCaptura();
+        toast.warning("Se pausó la sesión porque Safari pasó a segundo plano. Tocá Reanudar para seguir.");
+      }
+    };
+    document.addEventListener("visibilitychange", onHide);
+    return () => document.removeEventListener("visibilitychange", onHide);
+  }, [soporte?.isIOS, captura.estado, pausarCaptura]);
 
   // Soporte del navegador (solo existe en el cliente)
   useEffect(() => {
@@ -118,6 +144,7 @@ export default function SesionPage() {
     setSegundos(0);
     transcripcion.reiniciar();
     enVivo.reiniciar();
+    deteccion.reiniciar();
     setResumen(null);
     setDocumentId(null);
     setFase("en-curso");
@@ -323,6 +350,7 @@ export default function SesionPage() {
 
               {captura.error && pausado && <p className="text-sm text-red-400">{captura.error}</p>}
               {transcripcion.error && <p className="text-xs text-amber-500">{transcripcion.error}</p>}
+              {transcripcion.aviso && <p className="text-xs text-amber-500">{transcripcion.aviso}</p>}
 
               <div className="grid gap-6 md:grid-cols-[1fr_380px]">
                 {/* Transcripción */}
@@ -348,10 +376,10 @@ export default function SesionPage() {
 
                 {/* Preguntas en vivo */}
                 <div className="rounded-[24px] border border-border/40 bg-card/50 backdrop-blur-md p-4 h-[65vh] flex flex-col">
-                  <div className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground mb-3">Preguntar en vivo</div>
-                  <div className="flex-1 min-h-0">
-                    <LiveChat mensajes={enVivo.mensajes} cargando={enVivo.cargando} onPreguntar={enVivo.preguntar} />
-                  </div>
+                  <LiveSidePanel
+                    mensajes={enVivo.mensajes} cargando={enVivo.cargando} onPreguntar={enVivo.preguntar}
+                    conceptos={deteccion.conceptos} analizando={deteccion.analizando}
+                  />
                 </div>
               </div>
 
@@ -397,6 +425,9 @@ export default function SesionPage() {
           mensajes={enVivo.mensajes}
           cargando={enVivo.cargando}
           onPreguntar={enVivo.preguntar}
+          conceptos={deteccion.conceptos}
+          analizando={deteccion.analizando}
+          aviso={transcripcion.aviso}
           onPausarReanudar={pausarReanudar}
           onFinalizar={finalizar}
         />,

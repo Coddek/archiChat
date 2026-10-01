@@ -193,3 +193,44 @@ export async function* streamAnswer(
   }
   yield await callGemini(messages, geminiKey, MODELS.geminiFallback)
 }
+
+// ─── RESPUESTAS EN JSON ───────────────────────────────────────────────────────
+
+// Para tareas automáticas frecuentes (detección de conceptos): Gemini Flash-Lite
+// primero, porque tiene su propio cupo y no le quita cupo de Groq al chat;
+// si falla, gpt-oss-20b. Devuelve el objeto ya parseado.
+export async function callJSON<T>(prompt: string, keys?: UserKeys): Promise<T> {
+  const geminiKey = keys?.gemini || process.env.GEMINI_API_KEY!
+  const groqKey   = keys?.groq   || process.env.GROQ_API_KEY!
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${MODELS.geminiFallback}:generateContent`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': geminiKey },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          generationConfig: { responseMimeType: 'application/json' },
+        }),
+        signal: AbortSignal.timeout(15_000),
+      }
+    )
+    const data = await response.json()
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text
+    if (!text) throw new Error(data.error?.message ?? 'Gemini no devolvió JSON')
+    return JSON.parse(text) as T
+  } catch (error) {
+    console.warn('JSON con Gemini falló, probando Groq...', error)
+  }
+
+  const groq = new Groq({ apiKey: groqKey })
+  const response = await groq.chat.completions.create({
+    model: MODELS.groqFast,
+    messages: [{ role: 'user', content: prompt }],
+    response_format: { type: 'json_object' },
+    max_tokens: 1024,
+    reasoning_effort: 'low',
+  })
+  return JSON.parse(response.choices[0].message.content ?? '{}') as T
+}
