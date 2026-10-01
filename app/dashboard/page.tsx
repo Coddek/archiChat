@@ -31,7 +31,7 @@ import { SettingsModal } from "@/components/SettingsModal";
 type Document = {
   id: string;
   title: string;
-  source_type: "pdf" | "text" | "url";
+  source_type: "pdf" | "text" | "url" | "sesion";
   created_at: string;
 };
 
@@ -39,6 +39,7 @@ const typeConfig: Record<string, { icon: LucideIcon; label: string; color: strin
   pdf:  { icon: BookOpen, label: "PDF",      color: "text-red-400",     bg: "bg-red-500/10"     },
   text: { icon: PenLine,  label: "Texto",    color: "text-blue-400",    bg: "bg-blue-500/10"    },
   url:  { icon: Globe,    label: "Sitio Web",color: "text-emerald-400", bg: "bg-emerald-500/10" },
+  sesion: { icon: Mic,    label: "Sesión",   color: "text-violet-400",  bg: "bg-violet-500/10"  },
 };
 
 export default function DashboardPage() {

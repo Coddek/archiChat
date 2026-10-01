@@ -26,6 +26,7 @@ import { useLiveQuestions } from "@/hooks/useLiveQuestions";
 import { useDocumentPiP } from "@/hooks/useDocumentPiP";
 import { LiveChat } from "@/components/sesion/LiveChat";
 import { FloatingPanel } from "@/components/sesion/FloatingPanel";
+import { SessionSummary } from "@/components/sesion/SessionSummary";
 
 type Fase = "configurar" | "en-curso" | "finalizando" | "finalizada";
 
@@ -45,9 +46,13 @@ export default function SesionPage() {
   const [incluirMic, setIncluirMic] = useState(false);
   const [soporte, setSoporte]     = useState<AudioSupport | null>(null);
   const [segundos, setSegundos]   = useState(0);
+  const [etapaFinal, setEtapaFinal] = useState<"transcribiendo" | "resumiendo">("transcribiendo");
+  const [resumen, setResumen]     = useState<string | null>(null);
+  const [documentId, setDocumentId] = useState<string | null>(null);
 
   const sesionIdRef = useRef<string | null>(null);
   const transcriptEnd = useRef<HTMLDivElement>(null);
+  const resumenRef = useRef<HTMLDivElement>(null);
 
   const getSesionId = useCallback(() => sesionIdRef.current, []);
   const transcripcion = useTranscription(getSesionId);
@@ -76,6 +81,11 @@ export default function SesionPage() {
   useEffect(() => {
     transcriptEnd.current?.scrollIntoView({ behavior: "smooth", block: "end" });
   }, [transcripcion.transcripciones.length]);
+
+  // Mostrar el resumen apenas está listo
+  useEffect(() => {
+    if (resumen) resumenRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [resumen]);
 
   // Avisar antes de cerrar la pestaña con una sesión en curso
   useEffect(() => {
@@ -108,21 +118,36 @@ export default function SesionPage() {
     setSegundos(0);
     transcripcion.reiniciar();
     enVivo.reiniciar();
+    setResumen(null);
+    setDocumentId(null);
     setFase("en-curso");
   }
 
   async function finalizar() {
     await captura.detener();          // entrega el último tramo
     setSegundos(captura.elapsedSeconds());
+    setEtapaFinal("transcribiendo");
     setFase("finalizando");
-    await transcripcion.esperarCola(); // espera que se transcriba todo
-    const { error } = await supabase
-      .from("sesiones")
-      .update({ estado: "finalizada" })
-      .eq("id", sesionIdRef.current!);
-    if (error) toast.error("No se pudo marcar la sesión como finalizada");
-    setFase("finalizada");
     pip.close();
+    await transcripcion.esperarCola(); // espera que se transcriba todo
+
+    // Resumen + documento para el chat normal
+    setEtapaFinal("resumiendo");
+    try {
+      const res = await fetch("/api/finalizar-sesion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sesionId: sesionIdRef.current }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "No se pudo generar el resumen");
+      if (data.error) toast.warning(data.error);
+      setResumen(data.resumen);
+      setDocumentId(data.documentId);
+    } catch (e) {
+      toast.error(`${(e as Error).message}. Podés generarlo después desde Sesiones.`);
+    }
+    setFase("finalizada");
   }
 
   function pausarReanudar() {
@@ -332,7 +357,10 @@ export default function SesionPage() {
 
               {fase === "finalizando" && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Terminando de transcribir los últimos segundos…
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  {etapaFinal === "transcribiendo"
+                    ? "Terminando de transcribir los últimos segundos…"
+                    : "Generando el resumen y preparando la sesión para el chat… (puede tardar hasta un minuto)"}
                 </div>
               )}
               {fase === "finalizada" && (
@@ -344,6 +372,12 @@ export default function SesionPage() {
                     <Button variant="outline" className="rounded-2xl" onClick={() => router.push("/sesiones")}>Ver sesiones</Button>
                     <Button className="rounded-2xl" onClick={() => { setFase("configurar"); setTitulo(""); sesionIdRef.current = null; }}>Nueva sesión</Button>
                   </div>
+                </div>
+              )}
+              {fase === "finalizada" && resumen && (
+                <div ref={resumenRef} className="rounded-[24px] border border-primary/20 bg-card/50 backdrop-blur-md p-5 md:p-6 scroll-mt-24">
+                  <div className="text-xs font-bold uppercase tracking-[0.15em] text-primary mb-2">Resumen</div>
+                  <SessionSummary resumen={resumen} documentId={documentId} />
                 </div>
               )}
             </motion.div>

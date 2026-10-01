@@ -20,6 +20,7 @@ import {
   Circle,
   MessageSquare,
   Settings,
+  Mic,
   type LucideIcon,
 } from "lucide-react";
 import { SettingsModal } from "@/components/SettingsModal";
@@ -44,12 +45,14 @@ const typeIcon: Record<string, LucideIcon> = {
   pdf:  BookOpen,
   text: PenLine,
   url:  Globe,
+  sesion: Mic,
 };
 
 const typeColor: Record<string, string> = {
   pdf: "text-red-400",
   text: "text-blue-400",
   url: "text-emerald-400",
+  sesion: "text-violet-400",
 };
 
 export default function ChatPage() {

@@ -15,7 +15,8 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-type SourceType = 'pdf' | 'text' | 'url'
+// 'sesion': transcripción de ArchiChat Sessions, se procesa igual que texto plano
+type SourceType = 'pdf' | 'text' | 'url' | 'sesion'
 
 interface ProcessInput {
   documentId: string

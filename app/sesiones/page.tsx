@@ -1,24 +1,28 @@
 "use client";
 
-// Historial de sesiones. Versión básica (Fase 1): lista + transcripción desplegable.
-// El detalle completo con resumen y conceptos llega en la Fase 4.
+// Historial de sesiones: al abrir una se ve su resumen, el acceso al chat y la
+// transcripción. Las sesiones sin resumen (viejas o que fallaron) se pueden
+// terminar de procesar desde acá.
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { ArrowLeft, Mic, Plus, Clock, ChevronDown, Loader2, Trash2 } from "lucide-react";
+import { ArrowLeft, Mic, Plus, Clock, ChevronDown, Loader2, Trash2, Sparkles, MessageSquare } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { formatTime } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { SessionSummary } from "@/components/sesion/SessionSummary";
 
 type Sesion = {
   id: string;
   titulo: string | null;
   fecha: string;
   estado: "activa" | "finalizada";
+  resumen: string | null;
+  document_id: string | null;
 };
 
 type Linea = { texto: string; timestamp_segundos: number };
@@ -30,11 +34,13 @@ export default function SesionesPage() {
   const [loading, setLoading]   = useState(true);
   const [abierta, setAbierta]   = useState<string | null>(null);
   const [lineas, setLineas]     = useState<Record<string, Linea[]>>({});
+  const [verTranscripcion, setVerTranscripcion] = useState(false);
+  const [procesando, setProcesando] = useState<string | null>(null);
 
   useEffect(() => {
     supabase
       .from("sesiones")
-      .select("id, titulo, fecha, estado")
+      .select("id, titulo, fecha, estado, resumen, document_id")
       .order("fecha", { ascending: false })
       .then(({ data, error }) => {
         if (error) toast.error("Error al cargar las sesiones");
@@ -47,6 +53,7 @@ export default function SesionesPage() {
   async function toggle(id: string) {
     if (abierta === id) { setAbierta(null); return; }
     setAbierta(id);
+    setVerTranscripcion(false);
     if (lineas[id]) return;
     const { data, error } = await supabase
       .from("transcripciones")
@@ -61,8 +68,33 @@ export default function SesionesPage() {
     e.stopPropagation();
     if (!confirm(`¿Eliminar "${s.titulo}"?`)) return;
     const { error } = await supabase.from("sesiones").delete().eq("id", s.id);
+    // El documento del chat se borra junto con la sesión
+    if (!error && s.document_id) await supabase.from("documents").delete().eq("id", s.document_id);
     if (error) toast.error("Error al eliminar");
     else setSesiones(prev => prev.filter(x => x.id !== s.id));
+  }
+
+  // Resumen + documento para sesiones que no lo tienen
+  async function generarResumen(s: Sesion) {
+    setProcesando(s.id);
+    try {
+      const res = await fetch("/api/finalizar-sesion", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sesionId: s.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || "No se pudo generar el resumen");
+      if (data.error) toast.warning(data.error);
+      if (!data.resumen) toast.info("La sesión no tiene transcripción para resumir");
+      setSesiones(prev => prev.map(x => x.id === s.id
+        ? { ...x, estado: "finalizada", resumen: data.resumen, document_id: data.documentId }
+        : x));
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setProcesando(null);
+    }
   }
 
   return (
@@ -124,6 +156,9 @@ export default function SesionesPage() {
                   {s.estado === "activa" && (
                     <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-500 rounded-full">Sin finalizar</Badge>
                   )}
+                  {s.document_id && (
+                    <Badge variant="outline" className="text-[10px] border-primary/30 text-primary rounded-full hidden sm:inline-flex">En el chat</Badge>
+                  )}
                   <button onClick={e => eliminar(e, s)} className="p-2 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all">
                     <Trash2 className="w-4 h-4" />
                   </button>
@@ -131,17 +166,48 @@ export default function SesionesPage() {
                 </div>
 
                 {abierta === s.id && (
-                  <div className="border-t border-border/30 px-5 py-4 max-h-80 overflow-y-auto space-y-3">
-                    {!lineas[s.id] ? (
-                      <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                    ) : lineas[s.id].length === 0 ? (
-                      <p className="text-sm text-muted-foreground italic">Esta sesión no tiene transcripción.</p>
-                    ) : lineas[s.id].map((l, j) => (
-                      <div key={j} className="flex gap-4">
-                        <span className="font-mono text-[11px] text-muted-foreground pt-1 shrink-0 tabular-nums">{formatTime(l.timestamp_segundos)}</span>
-                        <p className="text-sm leading-relaxed">{l.texto}</p>
+                  <div className="border-t border-border/30 px-5 py-5 space-y-5">
+                    {/* Resumen, o el botón para generarlo */}
+                    {s.resumen ? (
+                      <SessionSummary resumen={s.resumen} documentId={s.document_id} />
+                    ) : (
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between rounded-2xl bg-primary/5 border border-primary/15 px-4 py-3">
+                        <p className="text-xs text-foreground/80 leading-relaxed">
+                          Esta sesión todavía no tiene resumen ni está disponible en el chat.
+                        </p>
+                        <Button onClick={() => generarResumen(s)} disabled={procesando !== null} className="rounded-2xl gap-2 shrink-0">
+                          {procesando === s.id
+                            ? <><Loader2 className="w-4 h-4 animate-spin" /> Procesando… (hasta 1 min)</>
+                            : <><Sparkles className="w-4 h-4" /> Generar resumen y preparar chat</>}
+                        </Button>
                       </div>
-                    ))}
+                    )}
+                    {s.resumen && !s.document_id && (
+                      <Button variant="outline" onClick={() => generarResumen(s)} disabled={procesando !== null} className="rounded-2xl gap-2">
+                        {procesando === s.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
+                        Preparar chat con esta sesión
+                      </Button>
+                    )}
+
+                    {/* Transcripción completa */}
+                    <button onClick={() => setVerTranscripcion(v => !v)} className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground hover:text-foreground transition-colors">
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${verTranscripcion ? "rotate-180" : ""}`} />
+                      Transcripción completa
+                    </button>
+                    {verTranscripcion && (
+                      <div className="max-h-96 overflow-y-auto space-y-3 pr-2">
+                        {!lineas[s.id] ? (
+                          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
+                        ) : lineas[s.id].length === 0 ? (
+                          <p className="text-sm text-muted-foreground italic">Esta sesión no tiene transcripción.</p>
+                        ) : lineas[s.id].map((l, j) => (
+                          <div key={j} className="flex gap-4">
+                            <span className="font-mono text-[11px] text-muted-foreground pt-1 shrink-0 tabular-nums">{formatTime(l.timestamp_segundos)}</span>
+                            <p className="text-sm leading-relaxed">{l.texto}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </motion.div>

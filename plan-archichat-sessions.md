@@ -81,7 +81,7 @@ Una prueba no garantiza estabilidad futura: **todo llamado a un LLM debe tener f
 - [x] Tipos (`tsc`) + lint + tests (`vitest`, 8/8) sin errores
 - [x] `npm run build` sin errores
 - [x] Probar funciones con keys reales (script): chat ✅, búsqueda web ✅, Groq roto → Gemini ✅, Groq roto en web → Gemini con Google Search ✅, RAG completo con documento real ✅
-- [ ] Probar en la app con tu usuario logueado (la API pide sesión, no se pudo por script)
+- [x] Probar en la app con tu usuario logueado (usado en producción el 2026-09-30)
 - [x] Commit + push a GitHub (`1652517`, 2026-09-30) → Vercel deploya solo
 - [x] Confirmar que el deploy de Vercel terminó bien y probar en producción (el chat responde)
 
@@ -273,7 +273,7 @@ Con el micrófono, el audio de una reunión con auriculares no se escucha nunca,
 - [x] Extra: Whisper recibe las últimas palabras transcriptas como contexto (continuidad entre tramos)
 - [x] Extra: respaldo `whisper-large-v3-turbo` → `whisper-large-v3` (cada uno con su propio límite)
 - [x] Probado por script: voz en español → texto en ~0,6–1,6 s ✅; silencio → vacío, sin frases inventadas ✅
-- [ ] Probar en el navegador con un video de YouTube (criterio de éxito de abajo)
+- [x] Probar en el navegador con un video de YouTube (video de 9 min, 2026-09-30)
 - [ ] Probar pestaña de Meet, audio de la computadora y micrófono
 
 ### ✅ Criterio de éxito Fase 1
@@ -359,7 +359,7 @@ En 20 segundos tenemos 2 chunks = suficiente texto para que el LLM detecte algo 
 - [x] Sin framer-motion dentro de la ventana: usa `requestAnimationFrame` de la pestaña principal, que se congela cuando está oculta
 - [x] Navegadores sin Document PiP (Firefox, Safari): ocultar el botón; se usa la página normal
 - [x] Probado en el navegador con un video de 9 min (2026-09-30): transcripción y preguntas en vivo funcionan bien
-- [ ] Probar una sesión de más de 10 min con la pestaña oculta (verifica el Worker)
+- [x] Probar una sesión de más de 10 min con la pestaña oculta: clase real por Zoom, +26 min sin cortes ✅ (el Worker funciona)
 
 > 🐛 Bug (prueba 2026-09-30): Whisper repitió "D. Rompe las cifras." 3 veces (08:10–08:30, con música/silencio) → se descartan tramos que repiten el final del anterior y segmentos con `compression_ratio` > 2,4 (+4 tests) ✅
 > 🐛 Bug: "¿qué me perdí desde mi última pregunta?" respondía sobre otro minuto → cada pregunta viaja con el minuto en que se hizo ✅ (probado con la transcripción real: resume de 01:00 a 05:00)
@@ -369,6 +369,8 @@ En 20 segundos tenemos 2 chunks = suficiente texto para que el LLM detecte algo 
 
 **Por qué sin RAG en vivo:**
 10 minutos de habla son ~1.500 palabras, entran enteras en el prompt. Indexar con embeddings en vivo sería lento y gastaría cuota de Gemini sin necesidad. El RAG se usa después, cuando la sesión ya terminó (ver Fase 6).
+
+> 🐛 Bug (clase real, 2026-09-30): el chat en vivo **le dio la razón a un concepto equivocado** (KNN "elige el grupo más cercano"), **inventó un minuto** (22:43) y tomó "la pregunta que hizo él" como la del usuario → prompt corrige en vez de confirmar, cita solo minutos reales, "él/el profe" = quien habla; razonamiento `medium` en preguntas en vivo ✅ (probado con la misma pregunta: ahora corrige)
 
 ### ✅ Criterio de éxito Fase 2
 Hablar sobre un tema técnico (ej: "vamos a usar pgvector para búsqueda semántica con embeddings") y que el sistema detecte y explique "pgvector" y "embeddings" automáticamente en menos de 30 segundos.
@@ -453,13 +455,11 @@ Poder revisar una sesión de hace 3 días con toda la transcripción y los conce
 > **Objetivo:** Al finalizar, la sesión aparece en el dashboard junto a los PDFs y URLs, y se puede chatear con ella con el chat normal (RAG) — sola o combinada con otros documentos.
 
 ### 4.5.1 — Base de datos
-- [ ] Ampliar el check de `documents.source_type` para aceptar `'sesion'` (verificar antes el nombre real del constraint en Supabase):
-  ```sql
-  ALTER TABLE documents DROP CONSTRAINT documents_source_type_check;
-  ALTER TABLE documents ADD CONSTRAINT documents_source_type_check
-    CHECK (source_type IN ('pdf', 'text', 'url', 'sesion'));
-  ALTER TABLE sesiones ADD COLUMN document_id UUID REFERENCES documents(id) ON DELETE SET NULL;
-  ```
+- [x] Correr `supabase/sessions.sql` en el SQL Editor de Supabase (2026-09-30):
+  - amplía el check de `documents.source_type` para aceptar `'sesion'` (busca el check por definición, no por nombre)
+  - agrega `sesiones.document_id`
+  - crea la tabla `preguntas_sesion` (pregunta, respuesta, minuto) con RLS
+- [x] Verificar el resultado: check, columna y política OK en el editor + tablas accesibles por API
 
 ### 4.5.2 — Indexación al finalizar
 - [ ] Guardar también las preguntas en vivo con sus respuestas (hoy se pierden al recargar) e incluirlas en el documento: así el chat principal sabe qué no entendió el usuario
@@ -485,10 +485,10 @@ Terminar una clase de 20 min, ir al chat normal y preguntar "¿qué dijo sobre X
 
 ### 5.1 — UX improvements
 
-- [ ] Soporte para pausar y reanudar sin perder el contexto
+- [x] Soporte para pausar y reanudar sin perder el contexto (usado en el recreo de la clase)
 - [ ] Indicador de uso de la API (cuántos requests quedan del día — Groq devuelve headers `x-ratelimit-remaining-requests`)
 - [ ] Decidir política de cuota compartida: si el usuario no tiene key propia, ¿límite de X minutos de sesión por día?
-- [ ] Modo oscuro si ArchiChat ya lo tiene
+- [x] Modo oscuro (las páginas nuevas usan el tema de la app; la ventana flotante copia el tema)
 - [ ] Mobile responsive — que funcione bien en celu (en celular solo existe la fuente micrófono, ver tabla de compatibilidad en 1.3)
 - [ ] En iOS: aviso visible "mantené la pantalla encendida y Safari abierto" + pausar sesión automáticamente con `visibilitychange` cuando la página pasa a segundo plano
 
@@ -504,8 +504,8 @@ Si mandás silencio a Whisper igual te cobra 10 segundos mínimos. En una reuni�
 
 ### 5.3 — Deploy
 
-- [ ] Agregar variables de entorno en Vercel: `GROQ_API_KEY` (si no está ya de ArchiChat)
-- [ ] Hacer push a GitHub → Vercel deploya automáticamente
+- [x] Variables de entorno en Vercel: `GROQ_API_KEY` ya estaba de ArchiChat
+- [x] Hacer push a GitHub → Vercel deploya automáticamente
 - [ ] Probar en mobile desde la URL de Vercel
 
 ### ✅ Criterio de éxito Fase 5
