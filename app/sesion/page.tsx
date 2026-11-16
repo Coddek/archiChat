@@ -417,7 +417,7 @@ export default function SesionPage() {
               {fase === "finalizada" && resumen && (
                 <div ref={resumenRef} className="rounded-[24px] border border-primary/20 bg-card/50 backdrop-blur-md p-5 md:p-6 scroll-mt-24">
                   <div className="text-xs font-bold uppercase tracking-[0.15em] text-primary mb-2">Resumen</div>
-                  <SessionSummary resumen={resumen} documentId={documentId} />
+                  <SessionSummary resumen={resumen} documentId={documentId} sesionId={sesionIdRef.current} titulo={titulo} />
                 </div>
               )}
             </motion.div>

@@ -37,6 +37,7 @@ Chat con tus documentos y con lo que escuchás en vivo. Subís un PDF, un texto 
 - **Notas y momentos marcados:** un botón para marcar "esto es importante" o escribir una nota corta sin dejar de mirar; quedan con su minuto, con lo que se estaba diciendo, y aparecen en el resumen y en el documento
 - **Ventana flotante** (Document Picture-in-Picture) que queda encima de todo, incluso de la app de Zoom, con la transcripción, el chat y los controles: no hace falta salir del video
 - **Resumen al finalizar** con puntos clave por minuto, términos importantes y una sección "Para repasar" armada con las dudas que tuvo el usuario
+- **Modo estudio:** tarjetas de repaso armadas con el resumen, los conceptos, las dudas que tuvo el usuario y lo que marcó; se pueden bajar en un archivo que Anki importa directo
 - **La sesión se convierte en documento** y se abre con el chat normal, sola o junto al apunte de la materia
 - **Historial** agrupado por fecha, con descarga en Markdown
 
@@ -77,7 +78,7 @@ La base se arma corriendo [`supabase/schema.sql`](supabase/schema.sql) y [`supab
 npx vitest run
 ```
 
-46 tests: el chunker, las notas y marcas de la sesión, la regla de corte de los tramos de audio, las validaciones con Zod, el filtro de alucinaciones de Whisper (silencios, frases de subtítulos, repeticiones y ecos del vocabulario) y la verificación de que cada documento sea del usuario en las rutas de chat, sugerencias y procesamiento.
+55 tests: el chunker, las tarjetas del modo estudio, las notas y marcas de la sesión, la regla de corte de los tramos de audio, las validaciones con Zod, el filtro de alucinaciones de Whisper (silencios, frases de subtítulos, repeticiones y ecos del vocabulario) y la verificación de que cada documento sea del usuario en las rutas de chat, sugerencias y procesamiento.
 
 ## Estado del proyecto
 

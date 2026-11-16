@@ -208,7 +208,7 @@ export default function SesionesPage() {
                   <div className="border-t border-border/30 px-5 py-5 space-y-5">
                     {/* Resumen, o el botón para generarlo */}
                     {s.resumen ? (
-                      <SessionSummary resumen={s.resumen} documentId={s.document_id} />
+                      <SessionSummary resumen={s.resumen} documentId={s.document_id} sesionId={s.id} titulo={s.titulo || "Sesión"} />
                     ) : (
                       <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between rounded-2xl bg-primary/5 border border-primary/15 px-4 py-3">
                         <p className="text-xs text-foreground/80 leading-relaxed">
