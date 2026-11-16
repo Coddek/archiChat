@@ -34,6 +34,7 @@ Chat con tus documentos y con lo que escuchás en vivo. Subís un PDF, un texto 
 - **Transcripción cada ~10 segundos** con su minuto
 - **Conceptos automáticos:** cuando aparece un término técnico o una sigla, se explica solo, sin preguntar
 - **Preguntas en vivo** sobre los últimos 10 minutos: "¿qué dijo recién?", "explicámelo más simple", "¿qué me perdí desde mi última pregunta?". Si el usuario plantea algo equivocado, lo corrige en vez de darle la razón
+- **Notas y momentos marcados:** un botón para marcar "esto es importante" o escribir una nota corta sin dejar de mirar; quedan con su minuto, con lo que se estaba diciendo, y aparecen en el resumen y en el documento
 - **Ventana flotante** (Document Picture-in-Picture) que queda encima de todo, incluso de la app de Zoom, con la transcripción, el chat y los controles: no hace falta salir del video
 - **Resumen al finalizar** con puntos clave por minuto, términos importantes y una sección "Para repasar" armada con las dudas que tuvo el usuario
 - **La sesión se convierte en documento** y se abre con el chat normal, sola o junto al apunte de la materia
@@ -51,7 +52,7 @@ Todo corre sobre los planes gratuitos de cada servicio.
 ## Por qué está hecho así
 
 - **Ningún modelo es imprescindible.** Los nombres de los modelos viven en un solo archivo ([`lib/models.ts`](lib/models.ts)) y cada llamada tiene un respaldo en otro proveedor: chat `gpt-oss-120b → gpt-oss-20b → Gemini`, búsqueda web `Groq browser_search → Gemini con Google Search → aviso de que no se pudo buscar`. Nació de un problema real: Groq retiró Llama 3.3 y Compound y el chat dejó de responder; ahora un retiro así es un cambio de una línea y no se nota.
-- **Cada tramo de audio es un archivo completo.** Con `MediaRecorder.start(timeslice)` solo el primer pedazo tiene el encabezado del webm y Whisper rechaza el resto; por eso cada 10 segundos se arranca un grabador nuevo antes de detener el anterior, sin huecos.
+- **Cada tramo de audio es un archivo completo.** Con `MediaRecorder.start(timeslice)` solo el primer pedazo tiene el encabezado del webm y Whisper rechaza el resto; por eso en cada corte se arranca un grabador nuevo antes de detener el anterior, sin huecos. Y el corte no es a ciegas: se espera a la primera pausa del que habla después de los 10 segundos (con tope en 14), para no partir palabras al medio.
 - **Los temporizadores corren en un Web Worker.** Durante una sesión la pestaña de archiChat queda oculta detrás del video, y Chrome frena sus `setInterval` (después de 5 minutos, a una vez por minuto): la primera prueba real se cortó en el minuto 5:20. Los workers no tienen ese freno.
 - **Whisper también se equivoca, y se filtra.** Con silencio inventa frases de subtítulos ("Gracias por ver", "Amara.org") y a veces repite en bucle el contexto que se le pasa; esos casos se descartan (con tests). Un medidor de volumen evita mandar los tramos en silencio, y los conceptos detectados (bien escritos) se le pasan a Whisper como vocabulario para que escriba bien los términos del tema.
 - **En vivo, sin RAG; después, con RAG.** Diez minutos de habla entran enteros en el prompt, así que las preguntas en vivo no necesitan búsqueda semántica y responden en un par de segundos. Al finalizar, la sesión pasa por el mismo pipeline que los PDFs, para poder buscar en clases de horas.
@@ -68,7 +69,7 @@ cp .env.example .env.local   # Supabase, Groq y Gemini (las tres tienen plan gra
 npm run dev
 ```
 
-La base se arma corriendo [`supabase/schema.sql`](supabase/schema.sql) y [`supabase/user_settings.sql`](supabase/user_settings.sql) en el SQL Editor de Supabase. Para capturar audio de una pestaña o de la computadora hace falta Chrome o Edge de escritorio; en Firefox, Safari y celulares Sessions funciona solo con el micrófono.
+La base se arma corriendo [`supabase/schema.sql`](supabase/schema.sql) y [`supabase/user_settings.sql`](supabase/user_settings.sql) en el SQL Editor de Supabase (sobre una base que ya existía, además [`supabase/notas.sql`](supabase/notas.sql)). Para capturar audio de una pestaña o de la computadora hace falta Chrome o Edge de escritorio; en Firefox, Safari y celulares Sessions funciona solo con el micrófono.
 
 ## Tests
 
@@ -76,7 +77,7 @@ La base se arma corriendo [`supabase/schema.sql`](supabase/schema.sql) y [`supab
 npx vitest run
 ```
 
-18 tests: el chunker, las validaciones con Zod y el filtro de alucinaciones de Whisper (silencios, frases de subtítulos, repeticiones y ecos del vocabulario).
+46 tests: el chunker, las notas y marcas de la sesión, la regla de corte de los tramos de audio, las validaciones con Zod, el filtro de alucinaciones de Whisper (silencios, frases de subtítulos, repeticiones y ecos del vocabulario) y la verificación de que cada documento sea del usuario en las rutas de chat, sugerencias y procesamiento.
 
 ## Estado del proyecto
 

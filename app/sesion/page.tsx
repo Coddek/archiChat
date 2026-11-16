@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, AppWindow, Monitor, Mic, Pause, Play, Square,
-  Loader2, CheckCircle2, AlertTriangle, PictureInPicture2, type LucideIcon,
+  Loader2, CheckCircle2, AlertTriangle, PictureInPicture2, Bookmark, type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { formatTime } from "@/lib/utils";
@@ -25,6 +25,7 @@ import { useTranscription } from "@/hooks/useTranscription";
 import { useLiveQuestions } from "@/hooks/useLiveQuestions";
 import { useContextDetection } from "@/hooks/useContextDetection";
 import { useDocumentPiP } from "@/hooks/useDocumentPiP";
+import { useSessionNotes } from "@/hooks/useSessionNotes";
 import { LiveSidePanel } from "@/components/sesion/LiveSidePanel";
 import { FloatingPanel } from "@/components/sesion/FloatingPanel";
 import { SessionSummary } from "@/components/sesion/SessionSummary";
@@ -68,6 +69,7 @@ export default function SesionPage() {
   });
   const enVivo = useLiveQuestions(getSesionId, captura.elapsedSeconds);
   const deteccion = useContextDetection(getSesionId, transcripcion.transcripciones, fase === "en-curso");
+  const apuntes = useSessionNotes(getSesionId, captura.elapsedSeconds);
 
   useEffect(() => {
     const tituloUtil = titulo.startsWith("Sesión del ") ? "" : titulo;
@@ -145,6 +147,7 @@ export default function SesionPage() {
     transcripcion.reiniciar();
     enVivo.reiniciar();
     deteccion.reiniciar();
+    apuntes.reiniciar();
     setResumen(null);
     setDocumentId(null);
     setFase("en-curso");
@@ -326,6 +329,14 @@ export default function SesionPage() {
                     )}
                     <Button
                       variant="outline"
+                      onClick={() => apuntes.agregar()}
+                      className="rounded-2xl gap-2"
+                      title="Queda con su minuto y aparece en el resumen"
+                    >
+                      <Bookmark className="w-4 h-4" /> Marcar
+                    </Button>
+                    <Button
+                      variant="outline"
                       onClick={pausarReanudar}
                       disabled={captura.estado === "pidiendo-permiso"}
                       className="rounded-2xl gap-2"
@@ -379,6 +390,7 @@ export default function SesionPage() {
                   <LiveSidePanel
                     mensajes={enVivo.mensajes} cargando={enVivo.cargando} onPreguntar={enVivo.preguntar}
                     conceptos={deteccion.conceptos} analizando={deteccion.analizando}
+                    notas={apuntes.notas} notaError={apuntes.error} onNota={apuntes.agregar}
                   />
                 </div>
               </div>
@@ -427,6 +439,9 @@ export default function SesionPage() {
           onPreguntar={enVivo.preguntar}
           conceptos={deteccion.conceptos}
           analizando={deteccion.analizando}
+          notas={apuntes.notas}
+          notaError={apuntes.error}
+          onNota={apuntes.agregar}
           aviso={transcripcion.aviso}
           onPausarReanudar={pausarReanudar}
           onFinalizar={finalizar}

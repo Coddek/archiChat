@@ -5,12 +5,13 @@
 // y los conceptos detectados.
 
 import { useEffect, useRef } from "react";
-import { Pause, Play, Square, Loader2 } from "lucide-react";
+import { Pause, Play, Square, Loader2, Bookmark } from "lucide-react";
 import { formatTime } from "@/lib/utils";
 import { LiveSidePanel } from "./LiveSidePanel";
 import type { Transcripcion } from "@/hooks/useTranscription";
 import type { MensajeEnVivo } from "@/hooks/useLiveQuestions";
 import type { Concepto } from "@/hooks/useContextDetection";
+import type { Nota } from "@/hooks/useSessionNotes";
 
 // Líneas de transcripción visibles en la ventana (la completa está en la página)
 const VISIBLE_LINES = 4;
@@ -27,6 +28,9 @@ interface Props {
   onPreguntar: (pregunta: string) => void;
   conceptos: Concepto[];
   analizando: boolean;
+  notas: Nota[];
+  notaError: string | null;
+  onNota: (texto?: string) => void;
   aviso: string | null;      // reintentando, sin conexión…
   onPausarReanudar: () => void;
   onFinalizar: () => void;
@@ -51,6 +55,14 @@ export function FloatingPanel(props: Props) {
         </span>
         <span className="font-mono text-xs tabular-nums">{formatTime(segundos)}</span>
         <span className="text-xs font-bold truncate flex-1" title={titulo}>{titulo}</span>
+        <button
+          onClick={() => props.onNota()}
+          disabled={ocupado}
+          className="h-8 w-8 rounded-lg border border-primary/30 text-primary flex items-center justify-center hover:bg-primary/5 disabled:opacity-40"
+          title="Marcar este momento"
+        >
+          <Bookmark className="w-3.5 h-3.5" />
+        </button>
         <button
           onClick={props.onPausarReanudar}
           disabled={ocupado}
@@ -91,7 +103,8 @@ export function FloatingPanel(props: Props) {
       <div className="flex-1 min-h-0">
         <LiveSidePanel
           mensajes={props.mensajes} cargando={props.cargando} onPreguntar={props.onPreguntar}
-          conceptos={props.conceptos} analizando={props.analizando} compact
+          conceptos={props.conceptos} analizando={props.analizando}
+          notas={props.notas} notaError={props.notaError} onNota={props.onNota} compact
         />
       </div>
     </div>

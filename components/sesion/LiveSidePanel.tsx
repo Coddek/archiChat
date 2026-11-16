@@ -5,13 +5,14 @@
 // (sin framer-motion: ver LiveChat).
 
 import { useEffect, useState } from "react";
-import { Lightbulb, MessageCircle, Loader2 } from "lucide-react";
+import { Lightbulb, MessageCircle, Loader2, Bookmark, Plus } from "lucide-react";
 import { formatTime } from "@/lib/utils";
 import { LiveChat } from "./LiveChat";
 import type { MensajeEnVivo } from "@/hooks/useLiveQuestions";
 import type { Concepto } from "@/hooks/useContextDetection";
+import { MAX_NOTA_LENGTH, type Nota } from "@/hooks/useSessionNotes";
 
-type Tab = "chat" | "conceptos";
+type Tab = "chat" | "conceptos" | "notas";
 
 interface Props {
   mensajes: MensajeEnVivo[];
@@ -19,11 +20,15 @@ interface Props {
   onPreguntar: (pregunta: string) => void;
   conceptos: Concepto[];
   analizando: boolean;
+  notas: Nota[];
+  notaError: string | null;
+  onNota: (texto?: string) => void;   // sin texto: solo marca el momento
   compact?: boolean;
 }
 
-export function LiveSidePanel({ mensajes, cargando, onPreguntar, conceptos, analizando, compact = false }: Props) {
+export function LiveSidePanel({ mensajes, cargando, onPreguntar, conceptos, analizando, notas, notaError, onNota, compact = false }: Props) {
   const [tab, setTab] = useState<Tab>("chat");
+  const [nota, setNota] = useState("");
   const [vistos, setVistos] = useState(0);
   const sinVer = tab === "conceptos" ? 0 : conceptos.length - vistos;
 
@@ -52,12 +57,53 @@ export function LiveSidePanel({ mensajes, cargando, onPreguntar, conceptos, anal
           {conceptos.length > 0 && <span className="text-[10px] font-mono opacity-70">{conceptos.length}</span>}
           {sinVer > 0 && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />}
         </button>
+        <button className={tabClass("notas")} onClick={() => setTab("notas")}>
+          <Bookmark className="w-3.5 h-3.5" /> Notas
+          {notas.length > 0 && <span className="text-[10px] font-mono opacity-70">{notas.length}</span>}
+        </button>
         {analizando && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground ml-auto" />}
       </div>
 
       <div className="flex-1 min-h-0">
         {tab === "chat" ? (
           <LiveChat mensajes={mensajes} cargando={cargando} onPreguntar={onPreguntar} compact={compact} />
+        ) : tab === "notas" ? (
+          <div className="flex flex-col h-full min-h-0">
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-2 pr-1">
+              {notas.length === 0 ? (
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Marcá un momento importante o escribí una nota corta. Quedan con su minuto y aparecen en el resumen.
+                </p>
+              ) : notas.map((n, i) => (
+                <div key={notas.length - i} className="flex gap-2 rounded-xl border border-border/40 bg-muted/20 px-3 py-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                  <span className="font-mono text-[10px] text-muted-foreground pt-0.5 shrink-0">{formatTime(n.timestamp_segundos)}</span>
+                  <p className={"text-xs leading-relaxed " + (n.texto ? "text-foreground/90" : "text-muted-foreground italic")}>
+                    {n.texto || "Momento marcado"}
+                  </p>
+                </div>
+              ))}
+            </div>
+            {notaError && <p className="text-[11px] text-red-400 pt-2">{notaError}</p>}
+            <form
+              onSubmit={e => { e.preventDefault(); onNota(nota); setNota(""); }}
+              className="flex items-center gap-2 pt-2"
+            >
+              <input
+                value={nota}
+                onChange={e => setNota(e.target.value)}
+                placeholder="Nota rápida (vacío: solo marca el momento)"
+                maxLength={MAX_NOTA_LENGTH}
+                className="flex-1 min-w-0 h-10 rounded-xl bg-background/60 border border-border/50 px-3 text-sm outline-none focus:border-primary/40 placeholder:text-muted-foreground/50"
+              />
+              <button
+                type="submit"
+                className="h-10 w-10 shrink-0 rounded-xl bg-primary text-primary-foreground flex items-center justify-center"
+                title={nota.trim() ? "Guardar nota" : "Marcar este momento"}
+              >
+                {nota.trim() ? <Plus className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
+              </button>
+            </form>
+          </div>
         ) : (
           <div className="h-full overflow-y-auto space-y-2.5 pr-1">
             {conceptos.length === 0 ? (

@@ -88,13 +88,14 @@ export default function SesionesPage() {
 
   // Descarga la sesión completa en Markdown: es el mismo texto que usa el chat
   async function exportar(s: Sesion) {
-    const [{ data: ls }, { data: preguntas }, { data: conceptos }] = await Promise.all([
+    const [{ data: ls }, { data: preguntas }, { data: conceptos }, { data: notas }] = await Promise.all([
       supabase.from("transcripciones").select("texto, timestamp_segundos").eq("sesion_id", s.id).order("timestamp_segundos"),
       supabase.from("preguntas_sesion").select("pregunta, respuesta, timestamp_segundos").eq("sesion_id", s.id).order("timestamp_segundos"),
       supabase.from("contextos").select("concepto, explicacion, timestamp_segundos").eq("sesion_id", s.id).order("timestamp_segundos"),
+      supabase.from("notas_sesion").select("texto, timestamp_segundos").eq("sesion_id", s.id).order("timestamp_segundos"),
     ]);
     const titulo = s.titulo || "Sesión";
-    const md = buildSessionDocument(titulo, s.fecha, s.resumen ?? "", ls ?? [], preguntas ?? [], conceptos ?? []);
+    const md = buildSessionDocument(titulo, s.fecha, s.resumen ?? "", ls ?? [], preguntas ?? [], conceptos ?? [], notas ?? []);
     const url = URL.createObjectURL(new Blob([md], { type: "text/markdown;charset=utf-8" }));
     const a = document.createElement("a");
     a.href = url;
