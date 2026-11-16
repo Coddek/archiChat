@@ -1,15 +1,16 @@
 // hooks/useAudioCapture.ts
 // Captura audio de una pestaña, de la pantalla completa (audio del sistema)
-// o del micrófono, y lo entrega en tramos de 10 segundos.
+// o del micrófono, y lo entrega en tramos de 10 a 14 segundos, cortados en una pausa del que habla.
 //
 // Cada tramo es un archivo completo: en vez de usar MediaRecorder.start(timeslice)
 // (solo el primer blob tendría el encabezado del webm y Whisper rechazaría el resto),
-// cada 10 s se arranca un MediaRecorder nuevo y se detiene el anterior.
+// en cada corte se arranca un MediaRecorder nuevo y se detiene el anterior.
 
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createTicker } from "@/lib/ticker";
+import { shouldCutChunk, LEVEL_SAMPLE_MS, PAUSE_RMS } from "@/lib/chunkRotation";
 
 export type AudioSource = "pestana" | "pantalla" | "microfono";
 export type CaptureState = "inactivo" | "pidiendo-permiso" | "grabando" | "pausado" | "detenido";
@@ -29,13 +30,13 @@ export interface AudioSupport {
   mimeType: string;
 }
 
-const CHUNK_MS = 10_000;
 const MIN_CHUNK_SECONDS = 1;  // tramos más cortos (al pausar justo después de rotar) se descartan
 
-// Medidor de volumen: cada 250 ms se mide el nivel (RMS) del audio. Si en todo
-// el tramo nunca supera este umbral (~-48 dB), es silencio: video en pausa,
-// recreo, nadie hablando. Así no se gasta cupo de Whisper en silencio.
-const LEVEL_SAMPLE_MS = 250;
+// Medidor de volumen: cada 100 ms se mide el nivel (RMS) del audio. Sirve para
+// dos cosas: cortar cada tramo en una pausa del que habla (lib/chunkRotation.ts)
+// y saber si el tramo entero fue silencio. Si nunca supera este umbral
+// (~-48 dB) es video en pausa, recreo, nadie hablando: no se gasta cupo de
+// Whisper en silencio.
 const SILENCE_RMS = 0.004;
 
 // Qué puede hacer este navegador. Se llama en el cliente, después de montar.
@@ -88,7 +89,8 @@ export function useAudioCapture({ onChunk, onSourceEnded }: Options) {
   const analyserRef  = useRef<AnalyserNode | null>(null);
   const peakRef      = useRef(0);                         // nivel máximo del tramo en curso
   const chunkPeaks   = useRef(new WeakMap<MediaRecorder, number>());
-  const stopMeterRef = useRef<(() => void) | null>(null);
+  const chunkStartRef = useRef(0);                        // cuándo arrancó el tramo en curso
+  const quietRef     = useRef(0);                         // mediciones seguidas en silencio
 
   // Tiempo grabado, sin contar las pausas
   const accumulatedRef = useRef(0);
@@ -141,38 +143,44 @@ export function useAudioCapture({ onChunk, onSourceEnded }: Options) {
     peakRef.current = 0;
   }, []);
 
-  const startMeter = useCallback(() => {
-    const analyser = analyserRef.current;
-    if (!analyser) return;
-    const buffer = new Float32Array(analyser.fftSize);
-    stopMeterRef.current = createTicker(LEVEL_SAMPLE_MS, () => {
-      analyser.getFloatTimeDomainData(buffer);
-      let sum = 0;
-      for (let i = 0; i < buffer.length; i++) sum += buffer[i] * buffer[i];
-      peakRef.current = Math.max(peakRef.current, Math.sqrt(sum / buffer.length));
-    });
-  }, []);
-
-  // Cada 10 s: arranca el recorder nuevo y recién después detiene el viejo (sin huecos).
-  // El temporizador corre en un Worker para que no se frene con la pestaña oculta.
+  // Un solo temporizador mide el volumen y decide cuándo cortar el tramo: en la
+  // primera pausa después de los 10 s, o a los 14 s si no hay ninguna. Al cortar
+  // arranca el recorder nuevo y recién después detiene el viejo (sin huecos).
+  // Corre en un Worker para que no se frene con la pestaña oculta.
   const startRotation = useCallback(() => {
     peakRef.current = 0;
+    quietRef.current = 0;
+    chunkStartRef.current = Date.now();
     startRecorder();
-    startMeter();
-    stopTickerRef.current = createTicker(CHUNK_MS, () => {
+    const analyser = analyserRef.current;
+    const buffer = analyser ? new Float32Array(analyser.fftSize) : null;
+
+    stopTickerRef.current = createTicker(LEVEL_SAMPLE_MS, () => {
+      // Con el medidor suspendido el analizador devuelve ceros: no sirve para buscar pausas
+      const meterOk = !!analyser && !!buffer && meterCtxRef.current?.state === "running";
+      if (meterOk) {
+        analyser.getFloatTimeDomainData(buffer);
+        let sum = 0;
+        for (let i = 0; i < buffer.length; i++) sum += buffer[i] * buffer[i];
+        const rms = Math.sqrt(sum / buffer.length);
+        peakRef.current = Math.max(peakRef.current, rms);
+        quietRef.current = rms < PAUSE_RMS ? quietRef.current + 1 : 0;
+      }
+      if (!shouldCutChunk(Date.now() - chunkStartRef.current, quietRef.current, meterOk)) return;
+
       const old = recorderRef.current;
       if (old) closeChunkLevel(old);
+      chunkStartRef.current = Date.now();
+      quietRef.current = 0;
       startRecorder();
       if (old?.state === "recording") old.stop();
     });
-  }, [startRecorder, startMeter, closeChunkLevel]);
+  }, [startRecorder, closeChunkLevel]);
 
   // Resuelve cuando el último tramo ya se entregó con onChunk
   const stopRotation = useCallback(() => {
     stopTickerRef.current?.();
     stopTickerRef.current = null;
-    stopMeterRef.current?.();
-    stopMeterRef.current = null;
     const recorder = recorderRef.current;
     recorderRef.current = null;
     if (recorder) closeChunkLevel(recorder);

@@ -10,7 +10,7 @@ import { formatTime } from '@/lib/utils'
 import { PreguntaSesionSchema } from '@/lib/validations'
 
 const CONTEXT_SECONDS = 10 * 60
-// 10 minutos en tramos de 10 segundos, con margen
+// 10 minutos en tramos de 10 a 14 segundos, con margen
 const MAX_LINES = 80
 
 export async function POST(req: NextRequest) {
@@ -53,7 +53,7 @@ El usuario te pregunta sin dejar de mirar, así que respondé CORTO: 2 a 4 oraci
 
 - "Él", "ella", "el profe" o "el que habla" es la persona que habla en la transcripción, no vos. "La pregunta que hizo" es una pregunta de esa persona.
 - Si pregunta qué se dijo (recién, hace un rato), respondé con lo que dice la transcripción y mencioná el minuto.
-- Citá solo minutos que aparecen tal cual en la transcripción (van de 10 en 10 segundos). Nunca inventes un minuto.
+- Citá solo minutos que aparecen tal cual en la transcripción. Nunca inventes un minuto.
 - Si pregunta qué se perdió desde su pregunta anterior, resumí lo que se dijo entre el minuto de esa pregunta (figura en la conversación previa) y ahora.
 - Si pide explicar un concepto, explicalo simple, con un ejemplo si ayuda. Podés usar tu conocimiento general.
 - Si el usuario plantea algo incorrecto ("¿o sea que hace tal cosa?"), NO le des la razón: corregilo con amabilidad y explicá cómo es en realidad. Es mejor corregir que confirmar un error.
