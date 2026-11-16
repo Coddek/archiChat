@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { processDocument } from '@/lib/pipeline'
 import { createClient } from '@/lib/supabase/server'
+import { checkDocumentAccess, accessDeniedResponse } from '@/lib/ownership'
 
 async function getUserKeys() {
   const supabase = await createClient()
@@ -35,6 +36,11 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       )
     }
+
+    // processDocument escribe los chunks con la service role key (sin RLS):
+    // solo se indexa si el documento es del usuario de la sesión
+    const access = await checkDocumentAccess(documentId)
+    if (access !== 'ok') return accessDeniedResponse(access)
 
     let processedContent: string | Buffer
 

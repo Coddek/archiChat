@@ -7,6 +7,7 @@ import { createClient as createSupabaseClient } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase/server'
 import { callAI } from '@/lib/ai'
 import { MODELS } from '@/lib/models'
+import { checkDocumentAccess } from '@/lib/ownership'
 
 const supabase = createSupabaseClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,6 +33,12 @@ export async function GET(req: NextRequest) {
   try {
     const documentId = req.nextUrl.searchParams.get('documentId')
     if (!documentId) return NextResponse.json({ questions: [] })
+
+    // El cliente de abajo usa la service role key (sin RLS): solo se leen los
+    // chunks si el documento es del usuario de la sesión
+    if ((await checkDocumentAccess(documentId)) !== 'ok') {
+      return NextResponse.json({ questions: [] })
+    }
 
     const { data: chunks } = await supabase
       .from('chunks')

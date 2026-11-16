@@ -9,6 +9,7 @@ import { MessageSchema } from '@/lib/validations'
 import { createClient } from '@/lib/supabase/server'
 import { streamAnswer } from '@/lib/ai'
 import type { ChatMessage } from '@/lib/ai'
+import { checkDocumentAccess, accessDeniedResponse } from '@/lib/ownership'
 
 async function getUserKeys() {
   const supabase = await createClient()
@@ -105,6 +106,17 @@ export async function POST(req: NextRequest) {
         { error: validation.error.issues[0]?.message ?? 'Pregunta inválida' },
         { status: 400 }
       )
+    }
+
+    // prepareRagPrompt busca los fragmentos con la service role key (sin RLS):
+    // antes hay que confirmar que el documento es del usuario de la sesión
+    if (documentId) {
+      const access = await checkDocumentAccess(String(documentId))
+      if (access !== 'ok') return accessDeniedResponse(access)
+    } else {
+      const supabase = await createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return accessDeniedResponse('unauthenticated')
     }
 
     const keys = await getUserKeys()
