@@ -23,9 +23,11 @@ export function SessionSummary({ resumen, documentId, sesionId, titulo }: Props)
   const router = useRouter();
   const [tarjetas, setTarjetas] = useState<Tarjeta[] | null>(null);
   const [armando, setArmando] = useState(false);
+  const [estudiando, setEstudiando] = useState(false);
 
   // Las tarjetas no se guardan: se arman cada vez que se piden
   async function estudiar() {
+    if (tarjetas) return setEstudiando(true);
     setArmando(true);
     try {
       const res = await fetch("/api/sesion-estudio", {
@@ -35,7 +37,9 @@ export function SessionSummary({ resumen, documentId, sesionId, titulo }: Props)
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "No se pudieron armar las tarjetas");
+      if (!data.tarjetas?.length) throw new Error("No salieron tarjetas de esta sesión");
       setTarjetas(data.tarjetas);
+      setEstudiando(true);
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
@@ -66,7 +70,7 @@ export function SessionSummary({ resumen, documentId, sesionId, titulo }: Props)
         <Button variant="outline" onClick={copiar} className="rounded-2xl gap-2">
           <Copy className="w-4 h-4" /> Copiar resumen
         </Button>
-        {sesionId && !tarjetas && (
+        {sesionId && (
           <Button variant="outline" onClick={estudiar} disabled={armando} className="rounded-2xl gap-2">
             {armando
               ? <><Loader2 className="w-4 h-4 animate-spin" /> Armando tarjetas…</>
@@ -74,7 +78,9 @@ export function SessionSummary({ resumen, documentId, sesionId, titulo }: Props)
           </Button>
         )}
       </div>
-      {tarjetas && <Flashcards tarjetas={tarjetas} titulo={titulo} />}
+      {tarjetas && estudiando && (
+        <Flashcards tarjetas={tarjetas} titulo={titulo} onClose={() => setEstudiando(false)} />
+      )}
     </div>
   );
 }
