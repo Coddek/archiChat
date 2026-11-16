@@ -30,4 +30,25 @@ describe('chunkText', () => {
     })
   })
 
+  // TEST 4: al llegar al final no se agrega una cola repetida
+  // Antes el loop daba una vuelta más y generaba un chunk extra que ya estaba
+  // entero dentro del anterior: un embedding de más y un resultado duplicado
+  test('el último chunk no repite el final del anterior', () => {
+    // Palabras numeradas: con texto repetido cualquier pedazo estaría en el anterior
+    // 2750 caracteres: el segundo chunk (desde 1300) llega justo al final y
+    // quedan más de OVERLAP caracteres después de su inicio + 1300
+    const text = Array.from({ length: 400 }, (_, i) => `palabra${i}`).join(' ').slice(0, 2750)
+    const chunks = chunkText(text)
+    const last = chunks.at(-1)!
+    const previous = chunks.at(-2)!
+    expect(previous.includes(last)).toBe(false)
+  })
+
+  // TEST 5: el texto completo sigue cubierto (no se pierde el final)
+  test('el final del texto queda en el último chunk', () => {
+    const text = 'palabra '.repeat(400) + 'FIN'
+    const chunks = chunkText(text)
+    expect(chunks.at(-1)!.endsWith('FIN')).toBe(true)
+  })
+
 })

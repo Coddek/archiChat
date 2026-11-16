@@ -90,3 +90,40 @@ describe('cleanTranscript — vocabulario', () => {
     expect(text).toBe('El pingüino Gentoo tiene la aleta más larga.')
   })
 })
+
+describe('cleanTranscript — no descarta habla real', () => {
+
+  test('una palabra corta no se descarta porque lo anterior termina con esas letras', () => {
+    // "así" termina en "sí", pero no es una repetición
+    const text = cleanTranscript([{ text: 'Sí.', no_speech_prob: 0.05 }], 'y entonces es así')
+    expect(text).toBe('Sí.')
+  })
+
+  test('una frase no se descarta por coincidir con el final de otra palabra', () => {
+    const text = cleanTranscript([{ text: 'Mente abierta.', no_speech_prob: 0.05 }], 'hay que pensarlo con calmamente abierta')
+    expect(text).toBe('Mente abierta.')
+  })
+
+  test('nombrar un solo término del vocabulario no se descarta', () => {
+    const text = cleanTranscript(
+      [{ text: 'Claude Code.', no_speech_prob: 0.05 }],
+      '',
+      'Clase de IA, Claude Code, Gentoo'
+    )
+    expect(text).toBe('Claude Code.')
+  })
+
+  test('decir parte del título de la sesión no se descarta', () => {
+    const text = cleanTranscript(
+      [{ text: 'Bases de datos.', no_speech_prob: 0.05 }],
+      '',
+      'Clase de bases de datos, PostgreSQL'
+    )
+    expect(text).toBe('Bases de datos.')
+  })
+
+  test('descarta el vocabulario entero aunque sea un solo término', () => {
+    const text = cleanTranscript([{ text: 'Clase de redes.', no_speech_prob: 0.2 }], '', 'Clase de redes')
+    expect(text).toBe('')
+  })
+})

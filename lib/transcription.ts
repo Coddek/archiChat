@@ -31,13 +31,27 @@ const MAX_COMPRESSION_RATIO = 2.4
 
 const normalize = (t: string) => t.toLowerCase().replace(/[^a-z0-9áéíóúüñ]+/g, ' ').trim()
 
+// Comparaciones por palabras enteras: "sí" no es el final de "así"
+const endsWithWords = (text: string, words: string) => ` ${text}`.endsWith(` ${words}`)
+const containsWords = (text: string, words: string) => ` ${text} `.includes(` ${words} `)
+
+// Whisper a veces devuelve el vocabulario que le pasamos como si alguien lo
+// hubiera dicho: todo entero, o varios términos seguidos. Un solo término (o
+// parte de uno, como un pedazo del título) es algo que el que habla puede decir
+// de verdad, así que no se descarta.
+function isVocabularyEcho(norm: string, vocabulario: string): boolean {
+  const terms = vocabulario.split(/[,.;\n]+/).map(normalize).filter(Boolean)
+  const full = terms.join(' ')
+  if (!containsWords(full, norm)) return false
+  return norm === full || !terms.some(term => containsWords(term, norm))
+}
+
 // Arma el texto final a partir de los segmentos, descartando silencio y alucinaciones.
 // `previousText` es lo último transcripto: con música o silencio Whisper a veces
 // repite en bucle el contexto que le pasamos ("D. Rompe las cifras." ×3), o
 // devuelve el vocabulario que le dimos como si alguien lo hubiera dicho.
 export function cleanTranscript(segments: WhisperSegment[], previousText = '', vocabulario = ''): string {
   const previous = normalize(previousText)
-  const vocab = normalize(vocabulario)
   const kept: string[] = []
   for (const segment of segments) {
     const text = segment.text.trim()
@@ -46,8 +60,8 @@ export function cleanTranscript(segments: WhisperSegment[], previousText = '', v
     if ((segment.compression_ratio ?? 0) > MAX_COMPRESSION_RATIO) continue
     if (HALLUCINATIONS.some(re => re.test(text))) continue
     // Repite lo anterior (del tramo previo o del mismo tramo)
-    if (norm && (previous.endsWith(norm) || normalize(kept.at(-1) ?? '') === norm)) continue
-    if (norm && vocab.includes(norm)) continue
+    if (norm && (endsWithWords(previous, norm) || normalize(kept.at(-1) ?? '') === norm)) continue
+    if (norm && isVocabularyEcho(norm, vocabulario)) continue
     kept.push(text)
   }
   return kept.join(' ').replace(/\s+/g, ' ').trim()

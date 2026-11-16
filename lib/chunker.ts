@@ -40,6 +40,10 @@ export function chunkText(text: string): string[] {
 
     chunks.push(cleaned.slice(start, end).trim())
 
+    // Ya llegamos al final: si siguiéramos, el próximo chunk sería solo la
+    // cola de este (los últimos OVERLAP caracteres), repetida
+    if (end >= cleaned.length) break
+
     // El próximo chunk empieza OVERLAP caracteres antes del fin de este
     // Eso genera la superposición entre chunks
     start = end - OVERLAP
