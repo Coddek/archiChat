@@ -10,6 +10,7 @@ import { createClient } from '@/lib/supabase/server'
 import { streamAnswer } from '@/lib/ai'
 import type { ChatMessage } from '@/lib/ai'
 import { checkDocumentAccess, accessDeniedResponse } from '@/lib/ownership'
+import { filasParaGuardar } from '@/lib/historial'
 
 async function getUserKeys() {
   const supabase = await createClient()
@@ -31,8 +32,10 @@ async function getUserKeys() {
 // el error sale como JSON 500 (lo que el cliente espera) y no como un stream vacío.
 async function sseResponse(
   answer: AsyncGenerator<string>,
-  meta: { sources: Source[]; confidence: number | null }
+  meta: { sources: Source[]; confidence: number | null },
+  onDone?: (fullText: string) => Promise<void>
 ) {
+  let fullText = ''
   const encoder = new TextEncoder()
   const send = (data: object) => encoder.encode(`data: ${JSON.stringify(data)}
 
@@ -42,13 +45,20 @@ async function sseResponse(
   const readable = new ReadableStream({
     async start(controller) {
       try {
-        if (!first.done) controller.enqueue(send({ type: 'chunk', content: first.value }))
+        if (!first.done) {
+          fullText += first.value
+          controller.enqueue(send({ type: 'chunk', content: first.value }))
+        }
         for await (const text of answer) {
+          fullText += text
           controller.enqueue(send({ type: 'chunk', content: text }))
         }
       } catch (error) {
         console.error('Error a mitad del stream:', error)
       } finally {
+        // Guardar antes de cerrar: en Vercel la función puede congelarse apenas
+        // termina la respuesta. Si falla, la respuesta llega igual.
+        if (onDone) await onDone(fullText).catch(e => console.error('No se pudo guardar el historial:', e))
         controller.enqueue(send({ type: 'done', ...meta }))
         controller.close()
       }
@@ -78,6 +88,19 @@ function buildUserContext(req: NextRequest): string {
     today = new Date().toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   }
   return `Fecha de hoy: ${today}. El usuario está en ${countryName}.`
+}
+
+// Guarda la pregunta y la respuesta en el historial del documento. Usa la sesión
+// del usuario (con RLS): solo puede escribir en sus propios documentos.
+// El cliente se crea durante el request (lee las cookies de la sesión).
+async function saveToHistory(documentId: string, question: string, sources: Source[], confidence: number | null) {
+  const supabase = await createClient()
+  return async (answer: string) => {
+    const filas = filasParaGuardar(documentId, question, answer, sources, confidence)
+    if (filas.length === 0) return
+    const { error } = await supabase.from('mensajes_chat').insert(filas)
+    if (error) throw error
+  }
 }
 
 // Últimos mensajes de la conversación (sin la pregunta actual), para que el
@@ -134,7 +157,8 @@ export async function POST(req: NextRequest) {
           context.mode,
           keys
         ),
-        { sources: context.sources, confidence: context.confidence }
+        { sources: context.sources, confidence: context.confidence },
+        await saveToHistory(String(documentId), lastQuestion, context.sources, context.confidence)
       )
     }
 
@@ -147,7 +171,8 @@ Respondé en español, de forma directa y concisa. Sin listas innecesarias.`
 
     return await sseResponse(
       streamAnswer([{ role: 'system', content: systemPrompt }, ...messages], 'doc', keys),
-      { sources: [], confidence: null }
+      { sources: [], confidence: null },
+      documentId ? await saveToHistory(String(documentId), lastQuestion, [], null) : undefined
     )
 
   } catch (error: unknown) {

@@ -5,7 +5,41 @@
 // sin importar si la fuente es un PDF, texto directo o una página web
 
 import * as cheerio from 'cheerio'
+import { Readability } from '@mozilla/readability'
+import { parseHTML } from 'linkedom'
 import { MODELS } from './models'
+
+// Bloques que se convierten en párrafos separados (\n\n) para que el chunker
+// pueda cortar entre ideas y no a mitad de una.
+const BLOQUES = 'h1, h2, h3, h4, h5, h6, p, li, pre, blockquote, figcaption, dt, dd, tr'
+
+// Contenido principal de una página, sin menús, botones ni barras laterales.
+// Usa Readability (el "modo lectura" de Firefox). null si no encuentra un artículo.
+export function extractFromHTML(html: string, url: string): string | null {
+  const { document } = parseHTML(html)
+  // Readability necesita saber la URL para resolver links relativos
+  try { Object.defineProperty(document, 'documentURI', { value: url }) } catch {}
+  const article = new Readability(document as unknown as Document).parse()
+  if (!article?.content) return null
+
+  const { document: limpio } = parseHTML(`<html><body>${article.content}</body></html>`)
+  const partes: string[] = []
+  limpio.querySelectorAll(BLOQUES).forEach((el: Element) => {
+    // Un <li> o <p> adentro de otro bloque ya cuenta en su contenedor
+    if (el.parentElement?.closest(BLOQUES)) return
+    // En una fila de tabla, las celdas van separadas para no pegar palabras
+    const crudo = el.tagName === 'TR'
+      ? Array.from(el.querySelectorAll('th, td')).map(c => c.textContent ?? '').join(' | ')
+      : el.textContent ?? ''
+    const texto = crudo.replace(/\s+/g, ' ').trim()
+    if (texto) partes.push(texto)
+  })
+  const texto = partes.join('\n\n').trim()
+  return texto.length >= MIN_ARTICLE_LENGTH ? texto : null
+}
+
+// Por debajo de esto, lo que encontró Readability no es un artículo
+const MIN_ARTICLE_LENGTH = 200
 
 // Umbral mínimo para considerar que unpdf extrajo texto real.
 // Si está por debajo, el PDF probablemente es una imagen escaneada.
@@ -76,6 +110,16 @@ export async function extractFromURL(url: string): Promise<string> {
 
     if (response.ok) {
       const html = await response.text()
+
+      // Primero Readability: solo el contenido, sin menús ni botones del sitio
+      try {
+        const articulo = extractFromHTML(html, url)
+        if (articulo) return articulo
+      } catch (error) {
+        console.warn('Readability falló, se usa la extracción simple:', error)
+      }
+
+      // Respaldo: todo el texto de la página
       const $ = cheerio.load(html)
       $('script, style, nav, footer, header, aside, iframe').remove()
       const text = $('body').text().replace(/\s+/g, ' ').trim()

@@ -45,8 +45,11 @@ export function chunkText(text: string): string[] {
     if (end >= cleaned.length) break
 
     // El próximo chunk empieza OVERLAP caracteres antes del fin de este
-    // Eso genera la superposición entre chunks
+    // Eso genera la superposición entre chunks. Se corre hasta el próximo
+    // espacio para no empezar a mitad de palabra.
     start = end - OVERLAP
+    const nextSpace = cleaned.indexOf(' ', start)
+    if (nextSpace > start && nextSpace < end) start = nextSpace + 1
   }
 
   // Descartamos chunks muy cortos (menos de 50 chars) — no aportan info útil

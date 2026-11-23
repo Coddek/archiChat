@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest'
-import { buildSummaryPrompt, buildSessionDocument, notasConMinutos } from '../sesion'
+import { buildSummaryPrompt, buildSessionDocument, notasConMinutos, describirSesion, terminosClave } from '../sesion'
 
 const lineas = [
   { texto: 'Hoy vemos índices en Postgres.', timestamp_segundos: 0 },
@@ -54,5 +54,47 @@ describe('notas en el resumen y en el documento', () => {
   test('sin notas, el documento no tiene la sección', () => {
     const doc = buildSessionDocument('Bases de datos', '2026-11-16T15:00:00Z', 'Resumen.', lineas, [])
     expect(doc).not.toContain('Notas y momentos marcados')
+  })
+})
+
+describe('descripción de una sesión a partir de su resumen', () => {
+  const resumen = `## Resumen general
+La clase explicó qué es la inflación y cómo se mide con el índice de precios al consumidor. También se vio por qué una suba aislada no alcanza.
+
+## Puntos clave
+- Definición de inflación (00:10)
+
+## Términos importantes
+- **Inflación**: suba generalizada y sostenida de los precios.
+- **IPC**: índice que sigue el precio de una canasta.
+- **Canasta básica**: conjunto de bienes de referencia.
+- **Deflación**: baja sostenida de precios.`
+
+  test('toma la primera oración del resumen general', () => {
+    expect(describirSesion(resumen)).toBe(
+      'La clase explicó qué es la inflación y cómo se mide con el índice de precios al consumidor.'
+    )
+  })
+
+  test('recorta una oración muy larga sin cortar palabras', () => {
+    const largo = `## Resumen general\n${'palabra '.repeat(60).trim()}.`
+    const d = describirSesion(largo, 80)!
+    expect(d.length).toBeLessThanOrEqual(81)
+    expect(d.endsWith('…')).toBe(true)
+    expect(d).not.toMatch(/palab…$/)
+  })
+
+  test('sin resumen o sin la sección, no hay descripción', () => {
+    expect(describirSesion(null)).toBeNull()
+    expect(describirSesion('## Puntos clave\n- algo')).toBeNull()
+  })
+
+  test('saca hasta tres términos importantes', () => {
+    expect(terminosClave(resumen)).toEqual(['Inflación', 'IPC', 'Canasta básica'])
+  })
+
+  test('sin la sección de términos, la lista queda vacía', () => {
+    expect(terminosClave('## Resumen general\nAlgo.')).toEqual([])
+    expect(terminosClave(null)).toEqual([])
   })
 })

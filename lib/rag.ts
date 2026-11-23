@@ -7,6 +7,28 @@ import { createClient } from '@supabase/supabase-js'
 import { getEmbedding, callAI } from './ai'
 import type { UserKeys, AnswerMode } from './ai'
 import { MODELS } from './models'
+import { esPreguntaGeneral, repartirIndices } from './respuesta'
+
+// El chat no interpreta HTML: se le pide al modelo que no lo use
+const SIN_HTML = 'No uses etiquetas HTML (como <br>); en las tablas, si una celda necesita varias ideas, separalas con punto y coma.'
+
+// Fragmentos tomados de principio a fin del documento, en orden
+async function fragmentosRepartidos(documentId: string, cantidad: number) {
+  const { data: indices } = await supabase
+    .from('chunks')
+    .select('chunk_index')
+    .eq('document_id', documentId)
+    .order('chunk_index')
+  if (!indices?.length) return []
+  const elegidos = repartirIndices(indices.length, cantidad).map(i => indices[i].chunk_index)
+  const { data } = await supabase
+    .from('chunks')
+    .select('content, chunk_index')
+    .eq('document_id', documentId)
+    .in('chunk_index', elegidos)
+    .order('chunk_index')
+  return (data ?? []) as { content: string; chunk_index: number }[]
+}
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -42,6 +64,33 @@ export async function prepareRagPrompt(
   userContext = '',      // fecha de hoy y país del usuario (lo arma el route)
   previousQuestion = ''  // para clasificar bien preguntas de seguimiento ("¿y el blue?")
 ): Promise<RagContext> {
+
+  // Pregunta sobre el documento entero ("¿de qué trata?", "resumen"): la
+  // búsqueda por similitud elegiría 4 fragmentos al azar. Se usan fragmentos
+  // repartidos por todo el documento y no se mide respaldo (no aplica).
+  if (esPreguntaGeneral(question)) {
+    const panorama = await fragmentosRepartidos(documentId, 6)
+    if (panorama.length > 0) {
+      return {
+        prompt: `Sos archiChat, un asistente para analizar documentos.
+Te paso fragmentos tomados de distintas partes del documento${documentTitle ? ` "${documentTitle}"` : ''}, en orden.
+Respondé la pregunta dando una visión de conjunto del documento entero, no de un fragmento suelto.
+Ignorá textos de navegación de páginas web (botones, menús, "compartir", "descargar") si aparecen.
+Respondé en español, de forma clara y directa. Usá markdown si ayuda a la claridad.
+${SIN_HTML}
+
+FRAGMENTOS DEL DOCUMENTO:
+${panorama.map((c, i) => `[Parte ${i + 1}]:\n${c.content}`).join('\n\n---\n\n')}
+
+PREGUNTA: ${question}
+
+RESPUESTA:`,
+        mode: 'doc',
+        sources: panorama.map(c => ({ content: c.content.slice(0, 300), chunk_index: c.chunk_index, similarity: 0 })),
+        confidence: null,
+      }
+    }
+  }
 
   // PASO 1: Convertir la pregunta en vector
   const questionEmbedding = await getEmbedding(question, keys?.gemini)
@@ -127,6 +176,7 @@ RESPUESTA:`,
 Respondé la siguiente pregunta usando principalmente la información del contexto del documento.
 Podés complementar con tu conocimiento general si es necesario, pero priorizá el contenido del documento.
 Respondé en español, de forma clara y directa. Usá markdown para formatear si ayuda a la claridad.
+${SIN_HTML}
 ${userContext}
 
 CONTEXTO DEL DOCUMENTO:

@@ -116,3 +116,39 @@ ${resumen}
 ${transcripcionConMinutos(lineas)}
 ${notas.length > 0 ? `\n## Notas y momentos marcados\n${notasConMinutos(notas, lineas)}\n` : ''}${conceptos.length > 0 ? `\n## Conceptos explicados durante la sesión\n${conceptosConMinutos(conceptos)}\n` : ''}${preguntas.length > 0 ? `\n## Preguntas hechas durante la sesión\n${preguntasConMinutos(preguntas)}\n` : ''}`
 }
+
+// ─── Lista de sesiones: descripción y temas sacados del resumen ya guardado ──
+
+// Texto de una sección "## Título" del resumen (hasta la próxima sección)
+function seccion(resumen: string, titulo: string): string | null {
+  const lineas = resumen.split(/\r?\n/)
+  const esTitulo = (l: string) => l.trim().startsWith('##')
+  const inicio = lineas.findIndex(
+    l => esTitulo(l) && l.replace(/^\s*#+\s*/, '').trim().toLowerCase() === titulo.toLowerCase()
+  )
+  if (inicio < 0) return null
+  const resto = lineas.slice(inicio + 1)
+  const fin = resto.findIndex(esTitulo)
+  const texto = (fin < 0 ? resto : resto.slice(0, fin)).join('\n').trim()
+  return texto || null
+}
+
+// Primera oración del "Resumen general", recortada sin partir palabras
+export function describirSesion(resumen: string | null, max = 160): string | null {
+  if (!resumen) return null
+  const texto = seccion(resumen, 'Resumen general')
+  if (!texto) return null
+  const plano = texto.replace(/\s+/g, ' ').trim()
+  const primera = plano.match(/^.+?[.!?](?=\s|$)/)?.[0] ?? plano
+  if (primera.length <= max) return primera
+  const corte = primera.slice(0, max)
+  return corte.slice(0, corte.lastIndexOf(' ')).replace(/[,;:]$/, '') + '…'
+}
+
+// Hasta tres términos en negrita de "Términos importantes"
+export function terminosClave(resumen: string | null, cantidad = 3): string[] {
+  if (!resumen) return []
+  const texto = seccion(resumen, 'Términos importantes')
+  if (!texto) return []
+  return Array.from(texto.matchAll(/^\s*-\s*\*\*(.+?)\*\*/gm), m => m[1].trim()).slice(0, cantidad)
+}
