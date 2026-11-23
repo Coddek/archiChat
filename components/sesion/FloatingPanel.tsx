@@ -49,16 +49,13 @@ export function FloatingPanel(props: Props) {
     <div className="h-screen flex flex-col bg-background text-foreground p-3 gap-3">
       {/* Reloj y controles */}
       <div className="flex items-center gap-2">
-        <span className="relative flex h-2.5 w-2.5 shrink-0">
-          {grabando && <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />}
-          <span className={`relative inline-flex h-2.5 w-2.5 rounded-full ${grabando ? "bg-red-500" : "bg-muted-foreground"}`} />
-        </span>
-        <span className="font-mono text-xs tabular-nums">{formatTime(segundos)}</span>
-        <span className="text-xs font-bold truncate flex-1" title={titulo}>{titulo}</span>
+        <span aria-hidden className={`h-2.5 w-2.5 shrink-0 rounded-full ${grabando ? "bg-live animate-live" : "bg-muted-foreground"}`} />
+        <span className="tabular text-xs font-medium">{formatTime(segundos)}</span>
+        <span className="text-xs font-medium truncate flex-1" title={titulo}>{titulo}</span>
         <button
           onClick={() => props.onNota()}
           disabled={ocupado}
-          className="h-8 w-8 rounded-lg border border-primary/30 text-primary flex items-center justify-center hover:bg-primary/5 disabled:opacity-40"
+          className="h-8 w-8 rounded-md border text-primary flex items-center justify-center hover:bg-secondary disabled:opacity-40"
           title="Marcar este momento"
         >
           <Bookmark className="w-3.5 h-3.5" />
@@ -74,7 +71,7 @@ export function FloatingPanel(props: Props) {
         <button
           onClick={props.onFinalizar}
           disabled={ocupado}
-          className="h-8 w-8 rounded-lg bg-red-500 text-white flex items-center justify-center hover:bg-red-600 disabled:opacity-40"
+          className="h-8 w-8 rounded-md bg-foreground text-background flex items-center justify-center hover:bg-foreground/90 disabled:opacity-40"
           title="Finalizar"
         >
           <Square className="w-3.5 h-3.5" />
@@ -84,10 +81,10 @@ export function FloatingPanel(props: Props) {
       {/* Últimas líneas de la transcripción */}
       <div className="rounded-xl border border-border/40 bg-muted/20 p-2.5 max-h-36 overflow-y-auto space-y-1.5 shrink-0">
         {ultimas.length === 0 ? (
-          <p className="text-[11px] text-muted-foreground italic">Escuchando… el primer texto aparece a los ~10 s.</p>
+          <p className="text-[11px] text-muted-foreground">Escuchando. El primer texto aparece a los diez segundos.</p>
         ) : ultimas.map((t, i) => (
-          <p key={transcripciones.length - ultimas.length + i} className="text-[11px] leading-snug text-foreground/80 animate-in fade-in duration-500">
-            <span className="font-mono text-muted-foreground mr-1.5">{formatTime(t.timestampSegundos)}</span>
+          <p key={transcripciones.length - ultimas.length + i} className="font-read text-[12px] leading-snug text-foreground/90 animate-line-in">
+            <span className="tabular text-muted-foreground mr-1.5">{formatTime(t.timestampSegundos)}</span>
             {t.texto}
           </p>
         ))}
@@ -97,7 +94,7 @@ export function FloatingPanel(props: Props) {
         <div ref={endRef} />
       </div>
 
-      {props.aviso && <p className="text-[11px] text-amber-500 leading-snug -mt-1">{props.aviso}</p>}
+      {props.aviso && <p className="text-[11px] text-primary leading-snug -mt-1">{props.aviso}</p>}
 
       {/* Chat y conceptos */}
       <div className="flex-1 min-h-0">

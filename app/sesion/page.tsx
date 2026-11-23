@@ -8,17 +8,15 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowLeft, AppWindow, Monitor, Mic, Pause, Play, Square,
-  Loader2, CheckCircle2, AlertTriangle, PictureInPicture2, Bookmark, type LucideIcon,
+  Loader2, PictureInPicture2, Bookmark, type LucideIcon,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { formatTime } from "@/lib/utils";
 import { createTicker } from "@/lib/ticker";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 import { useAudioCapture, getAudioSupport, type AudioSource, type AudioSupport } from "@/hooks/useAudioCapture";
 import { useTranscription } from "@/hooks/useTranscription";
@@ -138,7 +136,7 @@ export default function SesionPage() {
 
     if (error || !data) {
       await captura.detener();
-      toast.error("No se pudo crear la sesión");
+      toast.error("No se pudo crear la sesión. Probá de nuevo.");
       return;
     }
     sesionIdRef.current = data.id;
@@ -188,31 +186,31 @@ export default function SesionPage() {
   const grabando = captura.estado === "grabando";
   const pausado  = captura.estado === "pausado";
 
-  return (
-    <div className="min-h-screen bg-transparent text-foreground">
+  const ancho = fase === "configurar" ? "max-w-3xl" : "max-w-6xl";
+  const btn = "inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-secondary disabled:opacity-50";
 
-      {/* ── Header ─────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-xl px-4 md:px-8 py-4">
-        <div className={`${fase === "configurar" ? "max-w-4xl" : "max-w-6xl"} mx-auto flex items-center justify-between gap-4`}>
+  return (
+    <div className="min-h-screen">
+      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
+        <div className={`${ancho} mx-auto flex h-14 items-center justify-between gap-4 px-5 sm:px-8`}>
           <button
+            type="button"
             onClick={() => router.push("/sesiones")}
             disabled={fase === "en-curso" || fase === "finalizando"}
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground disabled:opacity-40"
           >
-            <ArrowLeft className="w-4 h-4" />
+            <ArrowLeft className="h-4 w-4" />
             Sesiones
           </button>
 
           {fase === "en-curso" && (
-            <div className="flex items-center gap-3">
-              <span className="relative flex h-3 w-3">
-                {grabando && <span className="absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75 animate-ping" />}
-                <span className={`relative inline-flex h-3 w-3 rounded-full ${grabando ? "bg-red-500" : "bg-muted-foreground"}`} />
-              </span>
-              <span className="font-mono text-sm tabular-nums">{formatTime(segundos)}</span>
-              <span className="text-xs text-muted-foreground hidden sm:inline">
-                {grabando ? "Escuchando" : "En pausa"}
-              </span>
+            <div className="flex items-center gap-2.5 text-sm" role="status">
+              <span
+                aria-hidden
+                className={`h-2.5 w-2.5 rounded-full ${grabando ? "bg-live animate-live" : "bg-muted-foreground"}`}
+              />
+              <span className="font-medium tabular">{formatTime(segundos)}</span>
+              <span className="hidden text-muted-foreground sm:inline">{grabando ? "Escuchando" : "En pausa"}</span>
             </div>
           )}
 
@@ -220,33 +218,33 @@ export default function SesionPage() {
         </div>
       </header>
 
-      <main className={`${fase === "configurar" ? "max-w-4xl" : "max-w-6xl"} mx-auto px-4 md:px-8 py-8 md:py-12`}>
-        <AnimatePresence mode="wait">
+      <div className={`${ancho} mx-auto px-5 py-10 sm:px-8 sm:py-12`}>
 
-          {/* ── Configurar ──────────────────────────────────── */}
-          {fase === "configurar" && (
-            <motion.div key="config" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-8">
-              <div className="space-y-3">
-                <Badge className="bg-primary/10 text-primary border-primary/20 px-4 py-1 rounded-full text-[10px] uppercase tracking-[0.2em] font-bold">
-                  Nueva sesión
-                </Badge>
-                <h1 className="text-3xl md:text-4xl font-black tracking-tighter leading-none">
-                  ¿Qué querés <span className="text-primary">transcribir</span>?
-                </h1>
-                <p className="text-muted-foreground max-w-md text-base leading-relaxed">
-                  Reproducí el video o entrá a la reunión, y archiChat va escribiendo todo lo que se dice.
-                </p>
-              </div>
+        {fase === "configurar" && (
+          <div className="space-y-8">
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight">Nueva sesión</h1>
+              <p className="mt-2 max-w-lg text-muted-foreground">
+                Poné el video o entrá a la reunión, elegí de dónde sale el audio y archiChat va
+                escribiendo lo que se dice.
+              </p>
+            </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="sesion-titulo">Nombre</Label>
               <Input
-                placeholder="Nombre de la sesión (opcional)"
+                id="sesion-titulo"
+                placeholder="Opcional. Por ejemplo: Economía, clase 4"
                 value={titulo}
                 onChange={e => setTitulo(e.target.value)}
                 maxLength={100}
-                className="h-12 rounded-2xl bg-background/60 border-border/50"
+                className="h-11"
               />
+            </div>
 
-              <div className="grid gap-3 sm:grid-cols-3">
+            <fieldset>
+              <legend className="mb-2 text-sm font-medium">Qué escuchar</legend>
+              <div role="radiogroup" className="grid gap-2 sm:grid-cols-3">
                 {fuentes.map(f => {
                   const disponible = !f.requiereDisplay || !!soporte?.displayAudio;
                   const Icon = f.icon;
@@ -254,176 +252,174 @@ export default function SesionPage() {
                   return (
                     <button
                       key={f.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={activa}
                       disabled={!disponible}
                       onClick={() => setFuente(f.id)}
-                      className={`text-left p-5 rounded-[20px] border transition-all ${
-                        activa ? "border-primary/60 bg-primary/5 shadow-[0_0_30px_-10px_rgba(124,58,237,0.4)]" : "border-border/40 hover:border-primary/30"
-                      } disabled:opacity-40 disabled:cursor-not-allowed`}
+                      className={`rounded-lg border p-4 text-left hover:bg-secondary/60 disabled:cursor-not-allowed disabled:opacity-40 ${
+                        activa ? "border-primary bg-secondary/60" : ""
+                      }`}
                     >
-                      <Icon className={`w-5 h-5 mb-3 ${activa ? "text-primary" : "text-muted-foreground"}`} />
-                      <div className="font-bold text-sm tracking-tight">{f.titulo}</div>
-                      <div className="text-xs text-muted-foreground mt-1 leading-relaxed">{f.desc}</div>
+                      <Icon className={`mb-3 h-5 w-5 ${activa ? "text-primary" : "text-muted-foreground"}`} />
+                      <span className="block text-sm font-medium">{f.titulo}</span>
+                      <span className="mt-1 block text-sm leading-relaxed text-muted-foreground">{f.desc}</span>
                     </button>
                   );
                 })}
               </div>
+            </fieldset>
 
-              {fuente !== "microfono" && (
-                <label className="flex items-center gap-3 text-sm text-muted-foreground cursor-pointer select-none">
-                  <input type="checkbox" checked={incluirMic} onChange={e => setIncluirMic(e.target.checked)} className="accent-primary w-4 h-4" />
-                  Incluir también mi micrófono (para que se transcriba lo que yo digo en la reunión)
-                </label>
-              )}
+            {fuente !== "microfono" && (
+              <label className="flex cursor-pointer select-none items-start gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  checked={incluirMic}
+                  onChange={e => setIncluirMic(e.target.checked)}
+                  className="mt-0.5 h-4 w-4 accent-[hsl(var(--primary))]"
+                />
+                <span>
+                  Incluir también mi micrófono
+                  <span className="block text-muted-foreground">Para que se transcriba lo que digo en la reunión.</span>
+                </span>
+              </label>
+            )}
 
-              {/* Avisos de compatibilidad */}
-              {soporte && !soporte.displayAudio && (
-                <div className="flex items-start gap-3 rounded-2xl bg-amber-500/5 border border-amber-500/20 px-4 py-3">
-                  <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" />
-                  <p className="text-xs text-foreground/80 leading-relaxed">
-                    {soporte.isIOS
-                      ? "En iPhone y iPad solo se puede usar el micrófono. Mantené la pantalla encendida y Safari abierto mientras dura la sesión."
-                      : "Este navegador no puede capturar el audio de una pestaña o de la computadora. Para transcribir videos o reuniones usá Chrome o Edge en una computadora."}
-                  </p>
+            {soporte && !soporte.displayAudio && (
+              <p className="border-l-2 border-primary pl-3 text-sm leading-relaxed">
+                {soporte.isIOS
+                  ? "En iPhone y iPad solo se puede usar el micrófono. Mantené la pantalla encendida y Safari abierto mientras dura la sesión."
+                  : "Este navegador no puede capturar el audio de una pestaña o de la computadora. Para transcribir videos o reuniones usá Chrome o Edge en una computadora."}
+              </p>
+            )}
+            {fuente !== "microfono" && (
+              <p className="text-sm leading-relaxed text-muted-foreground">
+                Al empezar, el navegador te pide que elijas {fuente === "pestana" ? "la pestaña" : "la pantalla"}.
+                Activá <strong className="font-medium text-foreground">{fuente === "pestana" ? "«Compartir audio de la pestaña»" : "«Compartir audio del sistema»"}</strong>;
+                si no, no se escucha nada.
+              </p>
+            )}
+
+            {captura.error && <p className="text-sm text-destructive" role="alert">{captura.error}</p>}
+
+            <button
+              type="button"
+              onClick={iniciar}
+              disabled={!soporte?.mediaRecorder || captura.estado === "pidiendo-permiso"}
+              className="inline-flex h-11 items-center gap-2 rounded-md bg-primary px-5 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-60"
+            >
+              {captura.estado === "pidiendo-permiso"
+                ? <><Loader2 className="h-4 w-4 animate-spin" /> Esperando el permiso</>
+                : "Empezar a escuchar"}
+            </button>
+          </div>
+        )}
+
+        {fase !== "configurar" && (
+          <div className="space-y-6">
+            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+              <h1 className="text-2xl font-semibold tracking-tight">{titulo}</h1>
+
+              {fase === "en-curso" && (
+                <div className="flex flex-wrap gap-2">
+                  {pip.supported && (
+                    <button type="button" onClick={() => pip.pipWindow ? pip.close() : pip.open()} className={btn}>
+                      <PictureInPicture2 className="h-4 w-4" />
+                      {pip.pipWindow ? "Cerrar ventana flotante" : "Ventana flotante"}
+                    </button>
+                  )}
+                  <button type="button" onClick={() => apuntes.agregar()} title="Queda con su minuto y aparece en el resumen" className={btn}>
+                    <Bookmark className="h-4 w-4" /> Marcar momento
+                  </button>
+                  <button type="button" onClick={pausarReanudar} disabled={captura.estado === "pidiendo-permiso"} className={btn}>
+                    {grabando ? <><Pause className="h-4 w-4" /> Pausar</> : <><Play className="h-4 w-4" /> Reanudar</>}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={finalizar}
+                    className="inline-flex h-9 items-center gap-2 rounded-md bg-foreground px-3 text-sm font-medium text-background hover:bg-foreground/90"
+                  >
+                    <Square className="h-3.5 w-3.5" /> Finalizar
+                  </button>
                 </div>
               )}
-              {fuente !== "microfono" && (
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  Al empezar, el navegador te va a pedir que elijas {fuente === "pestana" ? "la pestaña" : "la pantalla"}.
-                  Activá <strong>{fuente === "pestana" ? "“Compartir audio de la pestaña”" : "“Compartir audio del sistema”"}</strong>, si no, no se escucha nada.
-                </p>
-              )}
+            </div>
 
-              {captura.error && (
-                <p className="text-sm text-red-400">{captura.error}</p>
-              )}
+            {fase === "en-curso" && pip.supported && !pip.pipWindow && (
+              <p className="border-l-2 border-primary pl-3 text-sm leading-relaxed text-muted-foreground">
+                <span className="font-medium text-foreground">Abrí la ventana flotante y volvé al video.</span>{" "}
+                Queda encima de todo, con la transcripción y el chat, para preguntar sin salir de la reunión.
+              </p>
+            )}
 
-              <Button
-                onClick={iniciar}
-                disabled={!soporte?.mediaRecorder || captura.estado === "pidiendo-permiso"}
-                className="h-12 px-8 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl shadow-[0_0_25px_rgba(124,58,237,0.2)] gap-2"
-              >
-                {captura.estado === "pidiendo-permiso"
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Esperando permiso…</>
-                  : <><Play className="w-4 h-4" /> Iniciar sesión</>}
-              </Button>
-            </motion.div>
-          )}
+            {captura.error && pausado && <p className="text-sm text-destructive" role="alert">{captura.error}</p>}
+            {transcripcion.error && <p className="text-sm text-destructive">{transcripcion.error}</p>}
+            {transcripcion.aviso && <p className="text-sm text-muted-foreground">{transcripcion.aviso}</p>}
 
-          {/* ── En curso / finalizando / finalizada ─────────── */}
-          {fase !== "configurar" && (
-            <motion.div key="live" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <h1 className="text-2xl font-black tracking-tight">{titulo}</h1>
-
-                {fase === "en-curso" && (
-                  <div className="flex flex-wrap gap-2">
-                    {pip.supported && (
-                      <Button
-                        variant="outline"
-                        onClick={() => pip.pipWindow ? pip.close() : pip.open()}
-                        className="rounded-2xl gap-2 border-primary/30 text-primary hover:bg-primary/5"
-                      >
-                        <PictureInPicture2 className="w-4 h-4" />
-                        {pip.pipWindow ? "Cerrar ventana flotante" : "Ventana flotante"}
-                      </Button>
-                    )}
-                    <Button
-                      variant="outline"
-                      onClick={() => apuntes.agregar()}
-                      className="rounded-2xl gap-2"
-                      title="Queda con su minuto y aparece en el resumen"
-                    >
-                      <Bookmark className="w-4 h-4" /> Marcar
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={pausarReanudar}
-                      disabled={captura.estado === "pidiendo-permiso"}
-                      className="rounded-2xl gap-2"
-                    >
-                      {grabando ? <><Pause className="w-4 h-4" /> Pausar</> : <><Play className="w-4 h-4" /> Reanudar</>}
-                    </Button>
-                    <Button onClick={finalizar} className="rounded-2xl gap-2 bg-red-500 hover:bg-red-600 text-white">
-                      <Square className="w-4 h-4" /> Finalizar
-                    </Button>
-                  </div>
+            <div className="grid gap-0 overflow-hidden rounded-xl border bg-card md:grid-cols-[1fr_22rem]">
+              <section aria-label="Transcripción" className="max-h-[65vh] min-h-[50vh] space-y-4 overflow-y-auto p-5 md:p-6">
+                {transcripcion.transcripciones.length === 0 && (
+                  <p className="text-muted-foreground">
+                    {fase === "en-curso" ? "Escuchando. El primer texto aparece a los diez segundos." : "No se transcribió nada en esta sesión."}
+                  </p>
                 )}
-              </div>
-
-              {fase === "en-curso" && pip.supported && !pip.pipWindow && (
-                <div className="flex items-start gap-3 rounded-2xl bg-primary/5 border border-primary/15 px-4 py-3">
-                  <PictureInPicture2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                  <p className="text-xs text-foreground/80 leading-relaxed">
-                    <strong>Abrí la ventana flotante y volvé al video:</strong> queda encima de todo, con la transcripción y el chat para preguntar sin salir de la reunión.
+                {transcripcion.transcripciones.map((t, i) => (
+                  <div key={i} className="animate-line-in grid grid-cols-[3rem_1fr] gap-3">
+                    <span className="pt-1 text-xs text-muted-foreground tabular">{formatTime(t.timestampSegundos)}</span>
+                    <p className="font-read text-[1.02rem] leading-relaxed">{t.texto}</p>
+                  </div>
+                ))}
+                {transcripcion.procesando && (
+                  <p className="flex items-center gap-2 pl-[3.75rem] text-sm text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Transcribiendo
                   </p>
-                </div>
-              )}
+                )}
+                <div ref={transcriptEnd} />
+              </section>
 
-              {captura.error && pausado && <p className="text-sm text-red-400">{captura.error}</p>}
-              {transcripcion.error && <p className="text-xs text-amber-500">{transcripcion.error}</p>}
-              {transcripcion.aviso && <p className="text-xs text-amber-500">{transcripcion.aviso}</p>}
+              <div className="flex h-[65vh] flex-col border-t p-4 md:border-l md:border-t-0">
+                <LiveSidePanel
+                  mensajes={enVivo.mensajes} cargando={enVivo.cargando} onPreguntar={enVivo.preguntar}
+                  conceptos={deteccion.conceptos} analizando={deteccion.analizando}
+                  notas={apuntes.notas} notaError={apuntes.error} onNota={apuntes.agregar}
+                />
+              </div>
+            </div>
 
-              <div className="grid gap-6 md:grid-cols-[1fr_380px]">
-                {/* Transcripción */}
-                <div className="rounded-[24px] border border-border/40 bg-card/50 backdrop-blur-md p-5 md:p-6 min-h-[50vh] max-h-[65vh] overflow-y-auto space-y-4">
-                  {transcripcion.transcripciones.length === 0 && (
-                    <p className="text-sm text-muted-foreground italic">
-                      {fase === "en-curso" ? "Escuchando… el primer texto aparece a los ~10 segundos." : "No se transcribió nada en esta sesión."}
-                    </p>
-                  )}
-                  {transcripcion.transcripciones.map((t, i) => (
-                    <div key={i} className="flex gap-4 animate-in fade-in slide-in-from-bottom-1 duration-300">
-                      <span className="font-mono text-[11px] text-muted-foreground pt-1 shrink-0 tabular-nums">{formatTime(t.timestampSegundos)}</span>
-                      <p className="text-sm leading-relaxed">{t.texto}</p>
-                    </div>
-                  ))}
-                  {transcripcion.procesando && (
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Loader2 className="w-3 h-3 animate-spin" /> Transcribiendo…
-                    </div>
-                  )}
-                  <div ref={transcriptEnd} />
-                </div>
-
-                {/* Preguntas en vivo */}
-                <div className="rounded-[24px] border border-border/40 bg-card/50 backdrop-blur-md p-4 h-[65vh] flex flex-col">
-                  <LiveSidePanel
-                    mensajes={enVivo.mensajes} cargando={enVivo.cargando} onPreguntar={enVivo.preguntar}
-                    conceptos={deteccion.conceptos} analizando={deteccion.analizando}
-                    notas={apuntes.notas} notaError={apuntes.error} onNota={apuntes.agregar}
-                  />
+            {fase === "finalizando" && (
+              <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                {etapaFinal === "transcribiendo"
+                  ? "Terminando de transcribir los últimos segundos"
+                  : "Armando el resumen y preparando la sesión para el chat. Puede tardar hasta un minuto."}
+              </p>
+            )}
+            {fase === "finalizada" && (
+              <div className="flex flex-col justify-between gap-4 border-y py-4 sm:flex-row sm:items-center">
+                <p className="text-sm">
+                  Sesión guardada, <span className="tabular">{formatTime(segundos)}</span> de audio.
+                </p>
+                <div className="flex gap-2">
+                  <button type="button" className={btn} onClick={() => router.push("/sesiones")}>Ver sesiones</button>
+                  <button
+                    type="button"
+                    className="inline-flex h-9 items-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                    onClick={() => { setFase("configurar"); setTitulo(""); sesionIdRef.current = null; }}
+                  >
+                    Nueva sesión
+                  </button>
                 </div>
               </div>
-
-              {fase === "finalizando" && (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  {etapaFinal === "transcribiendo"
-                    ? "Terminando de transcribir los últimos segundos…"
-                    : "Generando el resumen y preparando la sesión para el chat… (puede tardar hasta un minuto)"}
-                </div>
-              )}
-              {fase === "finalizada" && (
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4 justify-between rounded-2xl bg-emerald-500/5 border border-emerald-500/20 px-5 py-4">
-                  <div className="flex items-center gap-2 text-sm text-emerald-600 dark:text-emerald-400 font-medium">
-                    <CheckCircle2 className="w-4 h-4" /> Sesión guardada · {formatTime(segundos)}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button variant="outline" className="rounded-2xl" onClick={() => router.push("/sesiones")}>Ver sesiones</Button>
-                    <Button className="rounded-2xl" onClick={() => { setFase("configurar"); setTitulo(""); sesionIdRef.current = null; }}>Nueva sesión</Button>
-                  </div>
-                </div>
-              )}
-              {fase === "finalizada" && resumen && (
-                <div ref={resumenRef} className="rounded-[24px] border border-primary/20 bg-card/50 backdrop-blur-md p-5 md:p-6 scroll-mt-24">
-                  <div className="text-xs font-bold uppercase tracking-[0.15em] text-primary mb-2">Resumen</div>
-                  <SessionSummary resumen={resumen} documentId={documentId} sesionId={sesionIdRef.current} titulo={titulo} />
-                </div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </main>
+            )}
+            {fase === "finalizada" && resumen && (
+              <section ref={resumenRef} aria-labelledby="resumen-titulo" className="scroll-mt-24">
+                <h2 id="resumen-titulo" className="mb-4 text-xl font-semibold tracking-tight">Resumen</h2>
+                <SessionSummary resumen={resumen} documentId={documentId} sesionId={sesionIdRef.current} titulo={titulo} />
+              </section>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Ventana flotante: mismo estado que la página, renderizado en otra ventana */}
       {pip.pipWindow && createPortal(

@@ -1,32 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
-import {
-  BookOpen,
-  PenLine,
-  Globe,
-  Plus,
-  Search,
-  Clock,
-  Trash2,
-  LogOut,
-  Sparkles,
-  FolderOpen,
-  Settings,
-  Mic,
-  type LucideIcon,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { BookOpen, PenLine, Globe, Plus, Search, Trash2, Mic, type LucideIcon } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { MagicCard } from "@/components/ui/magic-card";
+import { AppHeader } from "@/components/AppHeader";
 import { SettingsModal } from "@/components/SettingsModal";
+import { CHALK, TYPE_CHALK } from "@/lib/chalk";
+import { cn } from "@/lib/utils";
 
 type Document = {
   id: string;
@@ -35,19 +19,20 @@ type Document = {
   created_at: string;
 };
 
-const typeConfig: Record<string, { icon: LucideIcon; label: string; color: string; bg: string }> = {
-  pdf:  { icon: BookOpen, label: "PDF",      color: "text-red-400",     bg: "bg-red-500/10"     },
-  text: { icon: PenLine,  label: "Texto",    color: "text-blue-400",    bg: "bg-blue-500/10"    },
-  url:  { icon: Globe,    label: "Sitio Web",color: "text-emerald-400", bg: "bg-emerald-500/10" },
-  sesion: { icon: Mic,    label: "Sesión",   color: "text-violet-400",  bg: "bg-violet-500/10"  },
+const typeConfig: Record<string, { icon: LucideIcon; label: string }> = {
+  pdf:    { icon: BookOpen, label: "PDF" },
+  text:   { icon: PenLine,  label: "Texto" },
+  url:    { icon: Globe,    label: "Página web" },
+  sesion: { icon: Mic,      label: "Sesión en vivo" },
 };
+
+const dateFmt = new Intl.DateTimeFormat("es-AR", { day: "numeric", month: "short", year: "numeric" });
 
 export default function DashboardPage() {
   const router  = useRouter();
   const supabase = createClient();
   const [documents, setDocuments] = useState<Document[]>([]);
   const [loading,   setLoading]   = useState(true);
-  const [userEmail, setUserEmail] = useState("");
   const [search,    setSearch]    = useState("");
   const [showSettings,  setShowSettings]  = useState(false);
   const [isOnboarding,  setIsOnboarding]  = useState(false);
@@ -55,7 +40,6 @@ export default function DashboardPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadData(); }, []);
 
-  // Verificar si el usuario tiene API keys configuradas
   // Solo abre el onboarding si no hay keys del usuario NI del servidor
   useEffect(() => {
     fetch("/api/settings")
@@ -70,33 +54,26 @@ export default function DashboardPage() {
   }, []);
 
   async function loadData() {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user?.email) setUserEmail(user.email);
-
     const { data, error } = await supabase
       .from("documents")
       .select("id, title, source_type, created_at")
       .order("created_at", { ascending: false });
 
-    if (error) toast.error("Error al cargar documentos");
+    if (error) toast.error("No se pudieron cargar los documentos. Recargá la página.");
     else setDocuments(data || []);
     setLoading(false);
   }
 
   async function handleDelete(e: React.MouseEvent, id: string, title: string) {
+    e.preventDefault();
     e.stopPropagation();
-    if (!confirm(`¿Eliminar "${title}"?`)) return;
+    if (!confirm(`¿Eliminar "${title}"? No se puede deshacer.`)) return;
     const { error } = await supabase.from("documents").delete().eq("id", id);
-    if (error) toast.error("Error al eliminar");
+    if (error) toast.error("No se pudo eliminar el documento.");
     else {
       toast.success("Documento eliminado");
       setDocuments(prev => prev.filter(d => d.id !== id));
     }
-  }
-
-  async function handleLogout() {
-    await supabase.auth.signOut();
-    router.push("/auth");
   }
 
   const filteredDocs = documents.filter(doc =>
@@ -104,193 +81,110 @@ export default function DashboardPage() {
   );
 
   return (
-    <div className="min-h-screen bg-transparent text-foreground selection:bg-primary/30">
+    <div className="min-h-screen">
+      <AppHeader onSettings={() => { setIsOnboarding(false); setShowSettings(true); }} />
 
-      {/* ── Header ─────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-xl px-4 md:px-8 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3 group cursor-pointer" onClick={() => router.push("/dashboard")}>
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-700 flex items-center justify-center shadow-[0_0_20px_rgba(124,58,237,0.3)] group-hover:scale-105 transition-transform duration-300">
-              <Sparkles className="w-4 h-4 text-white animate-pulse" />
-            </div>
-            <span
-              className="font-bold text-lg tracking-tighter bg-clip-text text-transparent animate-shimmer"
-              style={{
-                backgroundImage: "linear-gradient(90deg, hsl(var(--primary)) 0%, hsl(var(--foreground) / 0.9) 28%, hsl(var(--primary)) 50%, #a78bfa 75%, hsl(var(--foreground) / 0.9) 100%)",
-                backgroundSize: "200% auto",
-              }}
-            >
-              archiChat
-            </span>
-          </div>
-
-          <div className="flex items-center gap-4">
-            <span className="text-xs font-medium text-muted-foreground hidden md:block italic">{userEmail}</span>
-            <Button variant="ghost" size="sm" onClick={() => router.push("/sesiones")}
-              className="text-muted-foreground hover:text-foreground hover:bg-foreground/5 rounded-xl gap-2 transition-all">
-              <Mic className="w-4 h-4" />
-              <span className="hidden sm:inline">Sesiones</span>
-            </Button>
-            <ThemeToggle />
-            <button
-              onClick={() => { setIsOnboarding(false); setShowSettings(true); }}
-              className="w-9 h-9 flex items-center justify-center rounded-xl text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all"
-              title="Configuración"
-            >
-              <Settings className="w-4 h-4" />
-            </button>
-            <Button variant="ghost" size="sm" onClick={handleLogout}
-              className="text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-xl gap-2 transition-all">
-              <LogOut className="w-4 h-4" />
-              <span className="hidden sm:inline">Salir</span>
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      {/* ── Main ───────────────────────────────────────────── */}
-      <main className="max-w-7xl mx-auto px-4 md:px-8 py-8 md:py-12">
-
-        {/* Hero & Search */}
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-8 mb-8 md:mb-14">
-          <div className="space-y-3">
-            <Badge className="bg-primary/10 text-primary border-primary/20 px-4 py-1 rounded-full text-[10px] uppercase tracking-[0.2em] font-bold">
-              Mis archivos
-            </Badge>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tighter leading-none text-foreground">
-              Mis <span className="text-primary">documentos</span>
-            </h1>
-            <p className="text-muted-foreground max-w-sm text-base leading-relaxed">
-              Todo lo que subás, la IA lo va a poder usar para responderte.
+      <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight">Documentos</h1>
+            <p className="mt-2 text-muted-foreground">
+              Lo que subas, o una sesión que termines, queda acá para preguntarle.
             </p>
           </div>
-
-          <div className="flex items-center gap-3">
-            <div className="relative group">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Buscar documentos..."
+                placeholder="Buscar"
+                aria-label="Buscar documentos"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                className="pl-11 bg-background/60 border-border/50 w-full md:w-[280px] h-11 rounded-2xl focus:ring-primary/20 focus:border-primary/30 placeholder:text-muted-foreground/50 transition-all"
+                className="h-10 w-full pl-9 sm:w-64"
               />
             </div>
-            <Button onClick={() => router.push("/upload")}
-              className="h-11 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl shadow-[0_0_25px_rgba(124,58,237,0.2)] gap-2 transition-all active:scale-95">
-              <Plus className="w-4 h-4" />
-              Subir
-            </Button>
+            <button
+              type="button"
+              onClick={() => router.push("/upload")}
+              className="inline-flex h-10 shrink-0 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              <Plus className="h-4 w-4" />
+              Subir documento
+            </button>
           </div>
         </div>
 
-        {/* ── Grid ───────────────────────────────────────────── */}
-        <AnimatePresence mode="wait">
+        <div className="mt-10">
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            <ul className="divide-y border-y" aria-busy>
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-[200px] rounded-[24px] bg-muted/30 animate-pulse border border-border/30" />
+                <li key={i} className="flex h-16 items-center gap-4 px-2">
+                  <div className="h-4 w-4 rounded bg-secondary" />
+                  <div className="h-4 w-1/3 rounded bg-secondary" />
+                </li>
               ))}
-            </div>
-
-          ) : filteredDocs.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center justify-center py-28 text-center bg-muted/20 rounded-[40px] border border-dashed border-border/40"
-            >
-              <div className="w-20 h-20 rounded-[24px] bg-primary/5 border border-primary/10 flex items-center justify-center mb-6">
-                <FolderOpen className="w-10 h-10 text-primary/40" />
-              </div>
-              <h2 className="text-2xl font-bold text-foreground tracking-tight">Sin documentos aún</h2>
-              <p className="text-muted-foreground mt-3 max-w-xs text-sm leading-relaxed">
-                Subí un PDF, pegá un texto o ingresá un link — la IA lo va a leer y podrás hacerle preguntas.
+            </ul>
+          ) : documents.length === 0 ? (
+            <div className="rounded-xl border border-dashed px-6 py-16 text-center">
+              <h2 className="text-lg font-medium">Todavía no hay documentos</h2>
+              <p className="mx-auto mt-2 max-w-sm text-muted-foreground">
+                Subí un PDF, pegá un texto o un link, o empezá una sesión en vivo.
               </p>
-              <Button onClick={() => router.push("/upload")}
-                className="mt-8 bg-muted/50 hover:bg-muted text-foreground border border-border/40 rounded-2xl px-8 h-11">
-                Subir primer documento
-              </Button>
-            </motion.div>
-
+              <div className="mt-6 flex justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => router.push("/upload")}
+                  className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+                >
+                  Subir documento
+                </button>
+                <Link href="/sesiones" className="inline-flex h-10 items-center rounded-md border px-4 text-sm font-medium hover:bg-secondary">
+                  Empezar una sesión
+                </Link>
+              </div>
+            </div>
+          ) : filteredDocs.length === 0 ? (
+            <p className="border-y py-10 text-center text-muted-foreground">
+              Ningún documento coincide con «{search}».
+            </p>
           ) : (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-
-              {filteredDocs.map((doc, i) => {
-                const cfg  = typeConfig[doc.source_type];
+            <ul className="divide-y border-y">
+              {filteredDocs.map(doc => {
+                const cfg  = typeConfig[doc.source_type] ?? typeConfig.text;
                 const Icon = cfg.icon;
-
                 return (
-                  <motion.div
-                    key={doc.id}
-                    layout
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                    whileHover={{ y: -6, scale: 1.015 }}
-                    onClick={() => router.push(`/chat/${doc.id}`)}
-                    className="cursor-pointer"
-                  >
-                    <MagicCard gradientColor="rgba(124,58,237,0.13)" gradientSize={260} className="rounded-[24px]">
-                      <Card className="group relative bg-card dark:bg-white/[0.02] backdrop-blur-md border-border/40 dark:border-white/5 rounded-[24px] overflow-hidden transition-all duration-500 hover:border-primary/40 hover:shadow-[0_0_40px_-10px_rgba(124,58,237,0.25)] shadow-sm ring-0 py-0 gap-0">
-
-                        {/* Glow interior violet al hacer hover */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none z-0" />
-
-                        <CardHeader className="px-5 pt-5 pb-0 relative z-10">
-                          <div className="flex items-start justify-between">
-                            <div className={`p-3 rounded-2xl ${cfg.bg} border border-border/20 shadow-inner group-hover:scale-110 transition-transform duration-500`}>
-                              <Icon className={`w-5 h-5 ${cfg.color}`} />
-                            </div>
-                            <button
-                              onClick={e => handleDelete(e, doc.id, doc.title)}
-                              className="p-2 opacity-0 group-hover:opacity-100 transition-all text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-xl"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </CardHeader>
-
-                        <CardContent className="px-5 pt-4 pb-5 relative z-10">
-                          <h3 className="font-bold text-base text-foreground leading-snug mb-5 group-hover:text-primary transition-colors duration-300 line-clamp-2 tracking-tight">
-                            {doc.title}
-                          </h3>
-                          <div className="flex items-center justify-between pt-4 border-t border-border/30">
-                            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-muted-foreground">
-                              <Clock className="w-3 h-3" />
-                              {new Date(doc.created_at).toLocaleDateString("es-AR", { day: "2-digit", month: "short" })}
-                            </div>
-                            <Badge variant="outline" className="text-[10px] font-bold border-border/40 bg-muted/50 text-muted-foreground px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                              {cfg.label}
-                            </Badge>
-                          </div>
-                        </CardContent>
-
-                      </Card>
-                    </MagicCard>
-                  </motion.div>
+                  <li key={doc.id}>
+                    <Link
+                      href={`/chat/${doc.id}`}
+                      className="group grid grid-cols-[2.25rem_1fr_auto] items-center gap-4 px-2 py-3 hover:bg-secondary/60 sm:grid-cols-[2.25rem_1fr_9rem_7rem_2.25rem]"
+                    >
+                      <span aria-hidden className={cn("flex h-9 w-9 items-center justify-center rounded-md", CHALK[TYPE_CHALK[doc.source_type] ?? "green"].tile)}>
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <span className="min-w-0 truncate font-medium">{doc.title}</span>
+                      <span className="hidden items-center gap-2 text-sm text-muted-foreground sm:flex">
+                        <span aria-hidden className={cn("h-1.5 w-1.5 rounded-full", CHALK[TYPE_CHALK[doc.source_type] ?? "green"].dot)} />
+                        {cfg.label}
+                      </span>
+                      <span className="text-sm text-muted-foreground tabular">
+                        {dateFmt.format(new Date(doc.created_at))}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={e => handleDelete(e, doc.id, doc.title)}
+                        aria-label={`Eliminar ${doc.title}`}
+                        className="hidden h-9 w-9 items-center justify-center rounded-md text-muted-foreground opacity-0 hover:bg-background hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100 sm:flex"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </Link>
+                  </li>
                 );
               })}
-
-              {/* Card — nuevo documento */}
-              <motion.div
-                whileHover={{ scale: 0.98 }}
-                onClick={() => router.push("/upload")}
-                className="group border-2 border-dashed border-border/40 rounded-[24px] p-6 cursor-pointer flex flex-col items-center justify-center gap-5 min-h-[200px] hover:border-primary/40 hover:bg-primary/[0.02] transition-all duration-500"
-              >
-                <div className="w-12 h-12 rounded-full bg-background border border-border/40 dark:border-white/5 flex items-center justify-center text-muted-foreground group-hover:text-primary group-hover:border-primary/20 group-hover:scale-110 transition-all duration-500">
-                  <Plus className="w-6 h-6" />
-                </div>
-                <div className="text-center">
-                  <span className="block font-bold text-muted-foreground group-hover:text-foreground transition-colors tracking-tight">
-                    Nuevo documento
-                  </span>
-                  <span className="text-xs text-muted-foreground/50 mt-1 block">PDF · texto · URL</span>
-                </div>
-              </motion.div>
-
-            </motion.div>
+            </ul>
           )}
-        </AnimatePresence>
-      </main>
+        </div>
+      </div>
 
       <SettingsModal
         open={showSettings}

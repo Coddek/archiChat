@@ -16,7 +16,6 @@ import {
   ArrowRight,
   ChevronDown,
   ChevronUp,
-  Copy,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -59,7 +58,7 @@ function StepList({ steps }: { steps: string[] }) {
     <ol className="space-y-2">
       {steps.map((step, i) => (
         <li key={i} className="flex items-start gap-3">
-          <span className="shrink-0 w-5 h-5 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black flex items-center justify-center mt-0.5">
+          <span className="shrink-0 w-5 h-5 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-semibold flex items-center justify-center mt-0.5">
             {i + 1}
           </span>
           <span className="text-sm text-foreground/80 leading-snug">{step}</span>
@@ -92,9 +91,9 @@ function KeyInput({
         placeholder={placeholder}
         autoComplete="off"
         spellCheck={false}
-        className={`w-full bg-background/60 dark:bg-white/[0.03] border rounded-xl px-4 py-3 pr-10 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none transition-all font-mono ${
+        className={`w-full bg-background/60 border rounded-xl px-4 py-3 pr-10 text-sm text-foreground placeholder:text-muted-foreground/40 outline-none transition-all tabular ${
           error
-            ? "border-red-500/50 focus:border-red-500/70 focus:ring-2 focus:ring-red-500/10"
+            ? "border-destructive/50 focus:border-destructive/70 focus:ring-2 focus:ring-red-500/10"
             : "border-border/50 focus:border-primary/40 focus:ring-2 focus:ring-primary/10"
         }`}
       />
@@ -138,13 +137,13 @@ function KeySection({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="rounded-2xl border border-border/40 bg-card/30 dark:bg-white/[0.01] overflow-hidden">
+    <div className="rounded-lg border border-border/40 bg-card/30 overflow-hidden">
       <div className="flex items-center justify-between px-4 pt-4 pb-3">
         <div className="flex items-center gap-2">
           <Icon className={`w-4 h-4 ${iconColor}`} />
           <span className="text-sm font-semibold text-foreground">{title}</span>
           {saved && !value && (
-            <span className="flex items-center gap-1 text-[10px] text-emerald-500 font-bold uppercase tracking-wider">
+            <span className="flex items-center gap-1 text-[10px] text-primary font-bold">
               <CheckCircle2 className="w-3 h-3" />
               Guardada
             </span>
@@ -169,7 +168,7 @@ function KeySection({
           error={error}
         />
         {error && (
-          <p className="text-xs text-red-500 mt-1.5">Este campo es requerido</p>
+          <p className="text-xs text-destructive mt-1.5">Este campo es requerido</p>
         )}
       </div>
 
@@ -303,7 +302,7 @@ export function SettingsModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={canClose ? onClose : undefined}
-            className={`fixed inset-0 z-50 bg-black/60 backdrop-blur-sm ${!canClose ? "cursor-not-allowed" : ""}`}
+            className={`fixed inset-0 z-50 bg-black/60 ${!canClose ? "cursor-not-allowed" : ""}`}
           />
 
           {/* Modal */}
@@ -315,13 +314,13 @@ export function SettingsModal({
             className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
           >
             <div
-              className="w-full max-w-md bg-background border border-border/50 dark:border-white/10 rounded-[28px] shadow-2xl overflow-hidden pointer-events-auto"
+              className="w-full max-w-md bg-background border border-border/50 rounded-lg overflow-hidden pointer-events-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* ── Header ────────────────────────────────────────────────── */}
               <div className="flex items-center justify-between px-6 pt-6 pb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-violet-700 flex items-center justify-center shadow-[0_0_20px_rgba(124,58,237,0.3)]">
+                  <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
                     {isOnboarding ? (
                       <Sparkles className="w-4 h-4 text-white" />
                     ) : (
@@ -369,9 +368,9 @@ export function SettingsModal({
                       </p>
 
                       <div className="space-y-3">
-                        <div className="flex items-start gap-4 rounded-2xl bg-orange-500/5 border border-orange-500/15 p-4">
-                          <div className="w-9 h-9 rounded-xl bg-orange-500/10 border border-orange-500/20 flex items-center justify-center shrink-0">
-                            <Zap className="w-4 h-4 text-orange-400" />
+                        <div className="flex items-start gap-4 rounded-lg bg-primary/5 border border-primary/15 p-4">
+                          <div className="w-9 h-9 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                            <Zap className="w-4 h-4 text-primary" />
                           </div>
                           <div>
                             <p className="text-sm font-bold text-foreground">Groq</p>
@@ -381,8 +380,8 @@ export function SettingsModal({
                           </div>
                         </div>
 
-                        <div className="flex items-start gap-4 rounded-2xl bg-blue-500/5 border border-blue-500/15 p-4">
-                          <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
+                        <div className="flex items-start gap-4 rounded-lg bg-secondary border border-border p-4">
+                          <div className="w-9 h-9 rounded-xl bg-secondary border border-border flex items-center justify-center shrink-0">
                             <Brain className="w-4 h-4 text-blue-400" />
                           </div>
                           <div>
@@ -400,7 +399,7 @@ export function SettingsModal({
 
                       <Button
                         onClick={() => setStep(1)}
-                        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl h-11 gap-2"
+                        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg h-11 gap-2"
                       >
                         Empezar configuración
                         <ArrowRight className="w-4 h-4" />
@@ -417,8 +416,8 @@ export function SettingsModal({
                       exit={{ opacity: 0, x: -20 }}
                       className="space-y-4"
                     >
-                      <div className="flex items-center gap-2 p-3 rounded-2xl bg-orange-500/5 border border-orange-500/15">
-                        <Zap className="w-4 h-4 text-orange-400 shrink-0" />
+                      <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/15">
+                        <Zap className="w-4 h-4 text-primary shrink-0" />
                         <p className="text-sm font-semibold text-foreground">Clave de Groq</p>
                       </div>
 
@@ -428,14 +427,14 @@ export function SettingsModal({
                         href="https://console.groq.com/keys"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-orange-500/25 bg-orange-500/5 text-sm font-bold text-orange-500 hover:bg-orange-500/10 transition-colors"
+                        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-primary/25 bg-primary/5 text-sm font-bold text-primary hover:bg-primary/10 transition-colors"
                       >
                         <ExternalLink className="w-4 h-4" />
                         Abrir Groq Console
                       </a>
 
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                        <label className="text-xs font-bold text-muted-foreground">
                           Pegá tu clave acá
                         </label>
                         <KeyInput
@@ -445,13 +444,13 @@ export function SettingsModal({
                           error={errors.groq}
                         />
                         {errors.groq && (
-                          <p className="text-xs text-red-500">Ingresá la clave de Groq para continuar</p>
+                          <p className="text-xs text-destructive">Ingresá la clave de Groq para continuar</p>
                         )}
                       </div>
 
                       <Button
                         onClick={handleNextStep}
-                        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl h-11 gap-2"
+                        className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg h-11 gap-2"
                       >
                         Siguiente — Gemini
                         <ArrowRight className="w-4 h-4" />
@@ -468,7 +467,7 @@ export function SettingsModal({
                       exit={{ opacity: 0, x: -20 }}
                       className="space-y-4"
                     >
-                      <div className="flex items-center gap-2 p-3 rounded-2xl bg-blue-500/5 border border-blue-500/15">
+                      <div className="flex items-center gap-2 p-3 rounded-lg bg-secondary border border-border">
                         <Brain className="w-4 h-4 text-blue-400 shrink-0" />
                         <p className="text-sm font-semibold text-foreground">Clave de Google Gemini</p>
                       </div>
@@ -479,14 +478,14 @@ export function SettingsModal({
                         href="https://aistudio.google.com/apikey"
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-blue-500/25 bg-blue-500/5 text-sm font-bold text-blue-500 hover:bg-blue-500/10 transition-colors"
+                        className="flex items-center justify-center gap-2 w-full py-2.5 rounded-xl border border-border bg-secondary text-sm font-bold text-border hover:bg-secondary transition-colors"
                       >
                         <ExternalLink className="w-4 h-4" />
                         Abrir Google AI Studio
                       </a>
 
                       <div className="space-y-1.5">
-                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                        <label className="text-xs font-bold text-muted-foreground">
                           Pegá tu clave acá
                         </label>
                         <KeyInput
@@ -496,21 +495,21 @@ export function SettingsModal({
                           error={errors.gemini}
                         />
                         {errors.gemini && (
-                          <p className="text-xs text-red-500">Ingresá la clave de Gemini para continuar</p>
+                          <p className="text-xs text-destructive">Ingresá la clave de Gemini para continuar</p>
                         )}
                       </div>
 
                       <div className="flex gap-3">
                         <button
                           onClick={() => setStep(1)}
-                          className="px-4 h-11 rounded-2xl text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all"
+                          className="px-4 h-11 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-foreground/5 transition-all"
                         >
                           ← Atrás
                         </button>
                         <Button
                           onClick={handleSave}
                           disabled={saving}
-                          className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl h-11"
+                          className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg h-11"
                         >
                           {saving ? "Guardando..." : "Guardar y empezar ✓"}
                         </Button>
@@ -528,7 +527,7 @@ export function SettingsModal({
                       className="space-y-4"
                     >
                       {hasServerKeys && !savedGroq && !savedGemini && (
-                        <div className="flex items-start gap-3 rounded-2xl bg-primary/5 border border-primary/15 px-4 py-3">
+                        <div className="flex items-start gap-3 rounded-lg bg-primary/5 border border-primary/15 px-4 py-3">
                           <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
                           <p className="text-xs text-foreground/80 leading-relaxed">
                             <strong>La app ya funciona sin que configures nada.</strong>{" "}
@@ -537,9 +536,9 @@ export function SettingsModal({
                         </div>
                       )}
                       {(savedGroq || savedGemini) && (
-                        <div className="flex items-center gap-2 rounded-2xl bg-emerald-500/8 border border-emerald-500/20 px-4 py-3">
-                          <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0" />
-                          <p className="text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+                        <div className="flex items-center gap-2 rounded-lg bg-primary/8 border border-primary/20 px-4 py-3">
+                          <CheckCircle2 className="w-4 h-4 text-primary shrink-0" />
+                          <p className="text-xs text-primary dark:text-primary font-medium">
                             Usando tus propias claves. Ingresá nuevos valores para actualizarlas.
                           </p>
                         </div>
@@ -548,7 +547,7 @@ export function SettingsModal({
                       <KeySection
                         title="Clave de Groq"
                         icon={Zap}
-                        iconColor="text-orange-400"
+                        iconColor="text-primary"
                         steps={GROQ_STEPS}
                         linkUrl="https://console.groq.com/keys"
                         linkLabel="Obtener gratis"
@@ -577,14 +576,14 @@ export function SettingsModal({
                         <Button
                           onClick={handleSave}
                           disabled={saving}
-                          className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl h-11"
+                          className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-lg h-11"
                         >
                           {saving ? "Guardando..." : "Guardar"}
                         </Button>
                         <Button
                           variant="ghost"
                           onClick={onClose}
-                          className="rounded-2xl h-11 px-5 text-muted-foreground hover:text-foreground"
+                          className="rounded-lg h-11 px-5 text-muted-foreground hover:text-foreground"
                         >
                           Cancelar
                         </Button>

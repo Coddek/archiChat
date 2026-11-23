@@ -6,6 +6,7 @@ const config: Config = {
     "./pages/**/*.{js,ts,jsx,tsx,mdx}",
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./lib/**/*.{ts,tsx}",
   ],
   theme: {
     extend: {
@@ -43,6 +44,14 @@ const config: Config = {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
         ring: "hsl(var(--ring))",
+        live: "hsl(var(--live))",
+        chalk: {
+          pink: "hsl(var(--chalk-pink) / <alpha-value>)",
+          green: "hsl(var(--chalk-green) / <alpha-value>)",
+          blue: "hsl(var(--chalk-blue) / <alpha-value>)",
+          orange: "hsl(var(--chalk-orange) / <alpha-value>)",
+          violet: "hsl(var(--chalk-violet) / <alpha-value>)",
+        },
         chart: {
           "1": "var(--chart-1)",
           "2": "var(--chart-2)",
@@ -56,27 +65,9 @@ const config: Config = {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
-      // --- ANIMACIONES PARA MAGIC UI ---
-      animation: {
-        "border-beam": "border-beam calc(var(--duration)*1s) infinite linear",
-        "shimmer": "shimmer 2.5s linear infinite",
-        "meteor": "meteor linear infinite",
-      },
-      keyframes: {
-        "border-beam": {
-          "100%": {
-            "offset-distance": "100%",
-          },
-        },
-        "shimmer": {
-          from: { backgroundPosition: "0 0" },
-          to:   { backgroundPosition: "-200% 0" },
-        },
-        "meteor": {
-          "0%":   { transform: "rotate(215deg) translateX(0)",      opacity: "1" },
-          "70%":  {                                                  opacity: "1" },
-          "100%": { transform: "rotate(215deg) translateX(-600px)", opacity: "0" },
-        },
+      fontFamily: {
+        sans: ["var(--font-ui)", "system-ui", "sans-serif"],
+        read: ["var(--font-read)", "Georgia", "serif"],
       },
     },
   },

@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Check, ChevronLeft, ChevronRight, Download, RotateCcw, Trophy, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Download, RotateCcw, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toAnkiTSV, type Tarjeta } from "@/lib/estudio";
 
@@ -17,8 +17,8 @@ interface Props {
 }
 
 const CARA =
-  "absolute inset-0 flex flex-col rounded-3xl p-6 sm:p-10 text-white shadow-2xl [backface-visibility:hidden]";
-const ETIQUETA = "text-xs font-bold uppercase tracking-[0.2em] text-white/70";
+  "absolute inset-0 flex flex-col rounded-xl border p-6 sm:p-10 text-foreground [backface-visibility:hidden]";
+const ETIQUETA = "text-sm text-muted-foreground";
 
 export function Flashcards({ tarjetas, titulo = "sesion", onClose }: Props) {
   const todas = tarjetas.map((_, i) => i);
@@ -95,15 +95,15 @@ export function Flashcards({ tarjetas, titulo = "sesion", onClose }: Props) {
       role="dialog"
       aria-modal="true"
       aria-label="Modo estudio"
-      className="fixed inset-0 z-50 flex flex-col bg-background/95 backdrop-blur-md"
+      className="fixed inset-0 z-50 flex flex-col bg-background"
     >
       {/* Encabezado: título, avance y cerrar */}
       <div className="mx-auto flex w-full max-w-3xl items-center gap-4 px-4 pt-5 sm:px-6">
         <div className="min-w-0 flex-1">
-          <div className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary">Modo estudio</div>
+          <div className="text-sm text-muted-foreground">Modo estudio</div>
           <div className="truncate text-sm font-medium">{titulo}</div>
         </div>
-        <div className="text-sm tabular-nums text-muted-foreground">
+        <div className="text-sm tabular text-muted-foreground">
           {Math.min(pos + 1, cola.length)} / {cola.length}
         </div>
         <Button variant="ghost" size="icon" onClick={onClose} aria-label="Cerrar" className="rounded-full">
@@ -111,9 +111,9 @@ export function Flashcards({ tarjetas, titulo = "sesion", onClose }: Props) {
         </Button>
       </div>
       <div className="mx-auto mt-3 w-full max-w-3xl px-4 sm:px-6">
-        <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+        <div className="h-1 overflow-hidden rounded-full bg-secondary">
           <div
-            className="h-full rounded-full bg-gradient-to-r from-violet-500 to-emerald-400 transition-all duration-500"
+            className="h-full rounded-full bg-primary transition-all duration-500"
             style={{ width: `${cola.length ? (Math.min(pos, cola.length) / cola.length) * 100 : 0}%` }}
           />
         </div>
@@ -136,21 +136,21 @@ export function Flashcards({ tarjetas, titulo = "sesion", onClose }: Props) {
                   volteada ? "[transform:rotateY(180deg)]" : ""
                 }`}
               >
-                <div className={`${CARA} bg-gradient-to-br from-violet-600 via-indigo-600 to-blue-600`}>
+                <div className={`${CARA} bg-card`}>
                   <div className={ETIQUETA}>Pregunta</div>
-                  <p className="my-auto text-balance text-center text-2xl font-semibold leading-snug sm:text-3xl">
+                  <p className="my-auto text-balance text-center text-2xl font-medium leading-snug sm:text-3xl">
                     {tarjeta.pregunta}
                   </p>
-                  <div className="text-center text-xs text-white/70">Tocá o apretá espacio para ver la respuesta</div>
+                  <div className="text-center text-sm text-muted-foreground">Tocá la tarjeta o apretá espacio para ver la respuesta</div>
                 </div>
                 <div
-                  className={`${CARA} bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 [transform:rotateY(180deg)]`}
+                  className={`${CARA} border-primary/60 bg-card [transform:rotateY(180deg)]`}
                 >
                   <div className={ETIQUETA}>Respuesta</div>
                   <div className="my-auto overflow-y-auto">
-                    <p className="text-balance text-center text-lg leading-relaxed sm:text-xl">{tarjeta.respuesta}</p>
+                    <p className="text-balance text-center font-read text-lg leading-relaxed sm:text-xl">{tarjeta.respuesta}</p>
                   </div>
-                  <div className="text-center text-xs text-white/70">¿La sabías?</div>
+                  <div className="text-center text-sm text-muted-foreground">¿La sabías?</div>
                 </div>
               </div>
             </div>
@@ -164,13 +164,13 @@ export function Flashcards({ tarjetas, titulo = "sesion", onClose }: Props) {
               </Button>
               <Button
                 onClick={() => marcar(false)}
-                className="h-12 flex-1 gap-2 rounded-2xl bg-amber-500 text-base text-white hover:bg-amber-600 sm:flex-none sm:px-8"
+                variant="outline" className="h-11 flex-1 gap-2 rounded-md text-sm sm:flex-none sm:px-6"
               >
                 <RotateCcw className="h-4 w-4" /> A repasar
               </Button>
               <Button
                 onClick={() => marcar(true)}
-                className="h-12 flex-1 gap-2 rounded-2xl bg-emerald-600 text-base text-white hover:bg-emerald-700 sm:flex-none sm:px-8"
+                className="h-11 flex-1 gap-2 rounded-md text-sm sm:flex-none sm:px-6"
               >
                 <Check className="h-4 w-4" /> La sabía
               </Button>
@@ -182,16 +182,13 @@ export function Flashcards({ tarjetas, titulo = "sesion", onClose }: Props) {
               </Button>
             </div>
             <p className="hidden text-center text-xs text-muted-foreground sm:block">
-              Espacio: dar vuelta · 1: a repasar · 2: la sabía · ← →: moverse · Esc: cerrar
+              Atajos: espacio da vuelta la tarjeta, 1 la deja para repasar, 2 la marca como sabida, las flechas te mueven y Esc cierra.
             </p>
           </>
         ) : (
           <div className="mx-auto w-full max-w-md space-y-6 text-center animate-in fade-in zoom-in-95 duration-300">
-            <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-emerald-500 text-white shadow-xl">
-              <Trophy className="h-9 w-9" />
-            </div>
             <div>
-              <div className="text-4xl font-bold tabular-nums">
+              <div className="text-4xl font-semibold tabular">
                 {sabidas.size} <span className="text-muted-foreground">de {tarjetas.length}</span>
               </div>
               <p className="mt-1 text-sm text-muted-foreground">
@@ -200,17 +197,17 @@ export function Flashcards({ tarjetas, titulo = "sesion", onClose }: Props) {
             </div>
             <div className="flex flex-col gap-2">
               {faltan.length > 0 && (
-                <Button onClick={() => empezar(faltan)} className="h-12 gap-2 rounded-2xl text-base">
+                <Button onClick={() => empezar(faltan)} className="h-11 gap-2 rounded-md">
                   <RotateCcw className="h-4 w-4" /> Repasar las que faltan
                 </Button>
               )}
-              <Button variant="outline" onClick={() => empezar(todas, true)} className="rounded-2xl">
+              <Button variant="outline" onClick={() => empezar(todas, true)} className="rounded-md">
                 Empezar de nuevo
               </Button>
-              <Button variant="outline" onClick={exportar} className="gap-2 rounded-2xl">
+              <Button variant="outline" onClick={exportar} className="gap-2 rounded-md">
                 <Download className="h-4 w-4" /> Bajar para Anki
               </Button>
-              <Button variant="ghost" onClick={onClose} className="rounded-2xl text-muted-foreground">
+              <Button variant="ghost" onClick={onClose} className="rounded-md text-muted-foreground">
                 Cerrar
               </Button>
             </div>

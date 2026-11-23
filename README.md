@@ -2,7 +2,7 @@
 
 Chat con tus documentos y con lo que escuchás en vivo. Subís un PDF, un texto o una URL y le hacés preguntas en lenguaje natural: cada respuesta muestra de qué fragmento salió. Y con **Sessions**, mientras mirás un video, una clase o una reunión de Zoom o Meet, archiChat transcribe lo que se dice, explica solo los conceptos que van apareciendo y te deja preguntar sin salir de la pantalla. Al terminar, la sesión queda como un documento más para seguir chateando con ella.
 
-**En producción:** https://archi-chat.vercel.app (se puede crear una cuenta; cada cuenta ve solo sus propios datos)
+**En producción:** https://archi-chat.vercel.app (de uso personal: la portada muestra qué hace y el registro está cerrado)
 
 <p align="center">
   <img src="docs/sesion-en-vivo.png" width="820" alt="Sesión en vivo: transcripción con minutos a la izquierda y chat para preguntar a la derecha">
@@ -24,7 +24,8 @@ Chat con tus documentos y con lo que escuchás en vivo. Subís un PDF, un texto 
 
 **Chat con documentos (RAG)**
 - **PDF, texto o URL:** el contenido se divide en fragmentos, se convierte en embeddings y se guarda en Postgres con pgvector
-- **Respuestas con fuentes:** cada respuesta muestra los fragmentos usados y un nivel de confianza
+- **Respuestas con fuentes:** cada respuesta muestra los fragmentos usados y qué tan respaldada está por el documento (fuerte, parcial o débil, con cortes medidos sobre documentos reales)
+- **Historial por documento:** la conversación queda guardada y se retoma al volver a abrirlo
 - **Búsqueda web** cuando la respuesta no está en el documento o se pide algo actual ("¿cuánto está el dólar hoy?"), ubicada en la fecha y el país del usuario
 - **Memoria de la conversación:** entiende preguntas de seguimiento ("¿y el blue?")
 - **Sugerencias de preguntas** al abrir un documento, y streaming token por token
@@ -70,7 +71,7 @@ cp .env.example .env.local   # Supabase, Groq y Gemini (las tres tienen plan gra
 npm run dev
 ```
 
-La base se arma corriendo [`supabase/schema.sql`](supabase/schema.sql) y [`supabase/user_settings.sql`](supabase/user_settings.sql) en el SQL Editor de Supabase (sobre una base que ya existía, además [`supabase/notas.sql`](supabase/notas.sql)). Para capturar audio de una pestaña o de la computadora hace falta Chrome o Edge de escritorio; en Firefox, Safari y celulares Sessions funciona solo con el micrófono.
+La base se arma corriendo [`supabase/schema.sql`](supabase/schema.sql) y [`supabase/user_settings.sql`](supabase/user_settings.sql) en el SQL Editor de Supabase (sobre una base que ya existía, además [`supabase/notas.sql`](supabase/notas.sql) y [`supabase/mensajes_chat.sql`](supabase/mensajes_chat.sql)). Para capturar audio de una pestaña o de la computadora hace falta Chrome o Edge de escritorio; en Firefox, Safari y celulares Sessions funciona solo con el micrófono.
 
 ## Tests
 
@@ -78,7 +79,7 @@ La base se arma corriendo [`supabase/schema.sql`](supabase/schema.sql) y [`supab
 npx vitest run
 ```
 
-55 tests: el chunker, las tarjetas del modo estudio, las notas y marcas de la sesión, la regla de corte de los tramos de audio, las validaciones con Zod, el filtro de alucinaciones de Whisper (silencios, frases de subtítulos, repeticiones y ecos del vocabulario) y la verificación de que cada documento sea del usuario en las rutas de chat, sugerencias y procesamiento.
+92 tests: la extracción de páginas web (sin menús ni botones), el chunker (sin cortar palabras), la detección de preguntas generales, el historial del chat, los niveles de respaldo, la descripción de cada sesión a partir de su resumen, las tarjetas del modo estudio, las notas y marcas de la sesión, la regla de corte de los tramos de audio, las validaciones con Zod, el filtro de alucinaciones de Whisper (silencios, frases de subtítulos, repeticiones y ecos del vocabulario) y la verificación de que cada documento sea del usuario en las rutas de chat, sugerencias y procesamiento.
 
 ## Estado del proyecto
 

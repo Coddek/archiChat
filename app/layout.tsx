@@ -1,24 +1,25 @@
 import type { Metadata } from "next";
-import localFont from "next/font/local";
+import { Instrument_Sans, Literata } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
-import { BackgroundEnv } from "@/components/ui/backgroundEnv";
 import { Providers } from "@/components/providers";
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
+// Interfaz: sans con carácter. Lectura (respuestas, transcripción): serif pensada para pantalla.
+const ui = Instrument_Sans({
+  subsets: ["latin"],
+  variable: "--font-ui",
+  display: "swap",
 });
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
+const read = Literata({
+  subsets: ["latin"],
+  variable: "--font-read",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "archiChat — Tu Segunda Mente",
-  description: "Análisis inteligente de documentos con RAG de alta precisión.",
+  title: "archiChat — chateá con tus documentos y tus clases",
+  description:
+    "Chat con documentos que cita de dónde sale cada respuesta, y transcripción en vivo de clases y reuniones que explica los conceptos mientras pasan.",
 };
 
 export default function RootLayout({
@@ -27,16 +28,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased font-[var(--font-geist-sans)] bg-background text-foreground selection:bg-primary/30`}
-      >
+    <html lang="es" suppressHydrationWarning className={`${ui.variable} ${read.variable}`}>
+      <body className="font-sans antialiased bg-background text-foreground">
         <Providers>
-          <BackgroundEnv />
-          <main className="relative min-h-screen flex flex-col z-10">
+          <main className="relative min-h-screen flex flex-col">
             {children}
           </main>
-          <Toaster richColors position="top-right" closeButton />
+          <Toaster position="bottom-right" closeButton />
         </Providers>
       </body>
     </html>

@@ -7,15 +7,14 @@
 import { Fragment, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
-import { ArrowLeft, Mic, Plus, Clock, ChevronDown, Loader2, Trash2, Sparkles, MessageSquare, Download, Lightbulb } from "lucide-react";
+import { Mic, ChevronDown, Loader2, Trash2, MessageSquare, Download } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { formatTime } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { AppHeader } from "@/components/AppHeader";
 import { SessionSummary } from "@/components/sesion/SessionSummary";
-import { buildSessionDocument } from "@/lib/sesion";
+import { buildSessionDocument, describirSesion, terminosClave } from "@/lib/sesion";
+import { CHALK, chalkFor } from "@/lib/chalk";
+import { cn } from "@/lib/utils";
 
 type Sesion = {
   id: string;
@@ -55,7 +54,7 @@ export default function SesionesPage() {
       .select("id, titulo, fecha, estado, resumen, document_id, contextos(count)")
       .order("fecha", { ascending: false })
       .then(({ data, error }) => {
-        if (error) toast.error("Error al cargar las sesiones");
+        if (error) toast.error("No se pudieron cargar las sesiones. Recargá la página.");
         else setSesiones(data || []);
         setLoading(false);
       });
@@ -72,7 +71,7 @@ export default function SesionesPage() {
       .select("texto, timestamp_segundos")
       .eq("sesion_id", id)
       .order("timestamp_segundos", { ascending: true });
-    if (error) toast.error("Error al cargar la transcripción");
+    if (error) toast.error("No se pudo cargar la transcripción.");
     else setLineas(prev => ({ ...prev, [id]: data || [] }));
   }
 
@@ -82,7 +81,7 @@ export default function SesionesPage() {
     const { error } = await supabase.from("sesiones").delete().eq("id", s.id);
     // El documento del chat se borra junto con la sesión
     if (!error && s.document_id) await supabase.from("documents").delete().eq("id", s.document_id);
-    if (error) toast.error("Error al eliminar");
+    if (error) toast.error("No se pudo eliminar la sesión.");
     else setSesiones(prev => prev.filter(x => x.id !== s.id));
   }
 
@@ -127,138 +126,163 @@ export default function SesionesPage() {
     }
   }
 
+  const timeFmt = (f: string) => new Date(f).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" });
+  const quietBtn = "inline-flex h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-secondary disabled:opacity-60";
+
   return (
-    <div className="min-h-screen bg-transparent text-foreground">
-      <header className="sticky top-0 z-50 border-b border-border/40 bg-background/80 backdrop-blur-xl px-4 md:px-8 py-4">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
-          <button onClick={() => router.push("/dashboard")} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="w-4 h-4" /> Documentos
+    <div className="min-h-screen">
+      <AppHeader />
+
+      <div className="mx-auto max-w-4xl px-5 py-10 sm:px-8 sm:py-14">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-semibold tracking-tight">Sesiones</h1>
+            <p className="mt-2 text-muted-foreground">Clases, videos y reuniones que transcribiste.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => router.push("/sesion")}
+            className="inline-flex h-10 shrink-0 items-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            <Mic className="h-4 w-4" />
+            Nueva sesión
           </button>
-          <ThemeToggle />
-        </div>
-      </header>
-
-      <main className="max-w-4xl mx-auto px-4 md:px-8 py-8 md:py-12 space-y-8">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div className="space-y-3">
-            <Badge className="bg-primary/10 text-primary border-primary/20 px-4 py-1 rounded-full text-[10px] uppercase tracking-[0.2em] font-bold">
-              Sesiones
-            </Badge>
-            <h1 className="text-3xl md:text-4xl font-black tracking-tighter leading-none">
-              Mis <span className="text-primary">sesiones</span>
-            </h1>
-            <p className="text-muted-foreground max-w-sm text-base leading-relaxed">
-              Videos, clases y reuniones transcriptas.
-            </p>
-          </div>
-          <Button onClick={() => router.push("/sesion")}
-            className="h-11 px-6 bg-primary hover:bg-primary/90 text-primary-foreground font-bold rounded-2xl shadow-[0_0_25px_rgba(124,58,237,0.2)] gap-2">
-            <Plus className="w-4 h-4" /> Nueva sesión
-          </Button>
         </div>
 
-        {loading ? (
-          <div className="space-y-3">
-            {[...Array(3)].map((_, i) => <div key={i} className="h-20 rounded-[20px] bg-muted/30 animate-pulse" />)}
-          </div>
-        ) : sesiones.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center bg-muted/20 rounded-[32px] border border-dashed border-border/40">
-            <Mic className="w-10 h-10 text-primary/40 mb-4" />
-            <h2 className="text-xl font-bold">Sin sesiones aún</h2>
-            <p className="text-muted-foreground mt-2 max-w-xs text-sm">
-              Iniciá una sesión mientras mirás un video o estás en una reunión.
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            {sesiones.map((s, i) => (
-              <Fragment key={s.id}>
-              {(i === 0 || grupoFecha(sesiones[i - 1].fecha) !== grupoFecha(s.fecha)) && (
-                <h2 className="text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground pt-4 first:pt-0 first-letter:uppercase">
-                  {grupoFecha(s.fecha)}
-                </h2>
-              )}
-              <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
-                className="rounded-[20px] border border-border/40 bg-card/50 backdrop-blur-md overflow-hidden">
-                <div onClick={() => toggle(s.id)} className="group flex items-center gap-4 p-5 cursor-pointer hover:bg-primary/[0.03] transition-colors">
-                  <div className="p-2.5 rounded-xl bg-primary/10"><Mic className="w-4 h-4 text-primary" /></div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-bold tracking-tight truncate">{s.titulo}</div>
-                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1">
-                      <Clock className="w-3 h-3" />
-                      {new Date(s.fecha).toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })}
-                      {(s.contextos?.[0]?.count ?? 0) > 0 && (
-                        <span className="flex items-center gap-1 ml-2"><Lightbulb className="w-3 h-3" />{s.contextos[0].count} conceptos</span>
-                      )}
+        <div className="mt-10">
+          {loading ? (
+            <ul className="divide-y border-y" aria-busy>
+              {[...Array(3)].map((_, i) => (
+                <li key={i} className="flex h-16 items-center px-2"><div className="h-4 w-1/3 rounded bg-secondary" /></li>
+              ))}
+            </ul>
+          ) : sesiones.length === 0 ? (
+            <div className="rounded-xl border border-dashed px-6 py-16 text-center">
+              <h2 className="text-lg font-medium">Todavía no hay sesiones</h2>
+              <p className="mx-auto mt-2 max-w-sm text-muted-foreground">
+                Empezá una mientras mirás un video, una clase o una reunión.
+              </p>
+            </div>
+          ) : (
+            <div>
+              {sesiones.map((s, i) => (
+                <Fragment key={s.id}>
+                  {(i === 0 || grupoFecha(sesiones[i - 1].fecha) !== grupoFecha(s.fecha)) && (
+                    <h2 className="pb-2 pt-8 text-sm font-medium text-muted-foreground first:pt-0 first-letter:uppercase">
+                      {grupoFecha(s.fecha)}
+                    </h2>
+                  )}
+                  <div className="border-t last:border-b">
+                    <div className="group flex items-center gap-4 px-2 py-4 hover:bg-secondary/60">
+                      <button
+                        type="button"
+                        onClick={() => toggle(s.id)}
+                        aria-expanded={abierta === s.id}
+                        className="flex min-w-0 flex-1 items-center gap-4 text-left"
+                      >
+                        <span
+                          aria-hidden
+                          className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-md", CHALK[chalkFor(s.titulo ?? s.id)].tile)}
+                        >
+                          <Mic className="h-4 w-4" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-baseline gap-3">
+                            <span className="truncate font-medium">{s.titulo}</span>
+                            <span className="shrink-0 text-sm text-muted-foreground tabular">{timeFmt(s.fecha)}</span>
+                          </span>
+                          <span className="mt-1 block text-sm leading-relaxed text-muted-foreground line-clamp-2">
+                            {describirSesion(s.resumen)
+                              ?? (s.estado === "activa" ? "Sin finalizar." : "Todavía no tiene resumen.")}
+                          </span>
+                          {(terminosClave(s.resumen).length > 0 || s.document_id) && (
+                            <span className="mt-2 flex flex-wrap items-center gap-1.5">
+                              {terminosClave(s.resumen).map(t => (
+                                <span key={t} className={cn("rounded px-2 py-0.5 text-xs", CHALK[chalkFor(s.titulo ?? s.id)].chip)}>
+                                  {t}
+                                </span>
+                              ))}
+                              {(s.contextos?.[0]?.count ?? 0) > 0 && (
+                                <span className="px-1 text-xs text-muted-foreground">
+                                  {s.contextos[0].count} conceptos explicados
+                                </span>
+                              )}
+                            </span>
+                          )}
+                        </span>
+                        <ChevronDown className={`h-4 w-4 shrink-0 text-muted-foreground transition-transform ${abierta === s.id ? "rotate-180" : ""}`} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={e => eliminar(e, s)}
+                        aria-label={`Eliminar ${s.titulo ?? "sesión"}`}
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 hover:bg-background hover:text-destructive focus-visible:opacity-100 group-hover:opacity-100"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
-                  </div>
-                  {s.estado === "activa" && (
-                    <Badge variant="outline" className="text-[10px] border-amber-500/30 text-amber-500 rounded-full">Sin finalizar</Badge>
-                  )}
-                  {s.document_id && (
-                    <Badge variant="outline" className="text-[10px] border-primary/30 text-primary rounded-full hidden sm:inline-flex">En el chat</Badge>
-                  )}
-                  <button onClick={e => eliminar(e, s)} className="p-2 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-red-400 hover:bg-red-500/10 rounded-xl transition-all">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                  <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${abierta === s.id ? "rotate-180" : ""}`} />
-                </div>
 
-                {abierta === s.id && (
-                  <div className="border-t border-border/30 px-5 py-5 space-y-5">
-                    {/* Resumen, o el botón para generarlo */}
-                    {s.resumen ? (
-                      <SessionSummary resumen={s.resumen} documentId={s.document_id} sesionId={s.id} titulo={s.titulo || "Sesión"} />
-                    ) : (
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 justify-between rounded-2xl bg-primary/5 border border-primary/15 px-4 py-3">
-                        <p className="text-xs text-foreground/80 leading-relaxed">
-                          Esta sesión todavía no tiene resumen ni está disponible en el chat.
-                        </p>
-                        <Button onClick={() => generarResumen(s)} disabled={procesando !== null} className="rounded-2xl gap-2 shrink-0">
-                          {procesando === s.id
-                            ? <><Loader2 className="w-4 h-4 animate-spin" /> Procesando… (hasta 1 min)</>
-                            : <><Sparkles className="w-4 h-4" /> Generar resumen y preparar chat</>}
-                        </Button>
-                      </div>
-                    )}
-                    {s.resumen && !s.document_id && (
-                      <Button variant="outline" onClick={() => generarResumen(s)} disabled={procesando !== null} className="rounded-2xl gap-2">
-                        {procesando === s.id ? <Loader2 className="w-4 h-4 animate-spin" /> : <MessageSquare className="w-4 h-4" />}
-                        Preparar chat con esta sesión
-                      </Button>
-                    )}
-
-                    <Button variant="ghost" size="sm" onClick={() => exportar(s)} className="rounded-xl gap-2 text-muted-foreground -ml-2">
-                      <Download className="w-4 h-4" /> Descargar sesión (.md)
-                    </Button>
-
-                    {/* Transcripción completa */}
-                    <button onClick={() => setVerTranscripcion(v => !v)} className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.15em] text-muted-foreground hover:text-foreground transition-colors">
-                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${verTranscripcion ? "rotate-180" : ""}`} />
-                      Transcripción completa
-                    </button>
-                    {verTranscripcion && (
-                      <div className="max-h-96 overflow-y-auto space-y-3 pr-2">
-                        {!lineas[s.id] ? (
-                          <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />
-                        ) : lineas[s.id].length === 0 ? (
-                          <p className="text-sm text-muted-foreground italic">Esta sesión no tiene transcripción.</p>
-                        ) : lineas[s.id].map((l, j) => (
-                          <div key={j} className="flex gap-4">
-                            <span className="font-mono text-[11px] text-muted-foreground pt-1 shrink-0 tabular-nums">{formatTime(l.timestamp_segundos)}</span>
-                            <p className="text-sm leading-relaxed">{l.texto}</p>
+                    {abierta === s.id && (
+                      <div className="space-y-6 px-2 pb-8 pt-2 sm:pl-[4.5rem]">
+                        {s.resumen ? (
+                          <SessionSummary resumen={s.resumen} documentId={s.document_id} sesionId={s.id} titulo={s.titulo || "Sesión"} />
+                        ) : (
+                          <div className="flex flex-col justify-between gap-3 rounded-lg border px-4 py-3 sm:flex-row sm:items-center">
+                            <p className="text-sm text-muted-foreground">
+                              Esta sesión todavía no tiene resumen ni está disponible en el chat.
+                            </p>
+                            <button type="button" onClick={() => generarResumen(s)} disabled={procesando !== null} className={quietBtn}>
+                              {procesando === s.id && <Loader2 className="h-4 w-4 animate-spin" />}
+                              {procesando === s.id ? "Generando (hasta 1 minuto)" : "Generar resumen"}
+                            </button>
                           </div>
-                        ))}
+                        )}
+
+                        <div className="flex flex-wrap gap-2">
+                          {s.resumen && !s.document_id && (
+                            <button type="button" onClick={() => generarResumen(s)} disabled={procesando !== null} className={quietBtn}>
+                              {procesando === s.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <MessageSquare className="h-4 w-4" />}
+                              Preparar el chat
+                            </button>
+                          )}
+                          <button type="button" onClick={() => exportar(s)} className={quietBtn}>
+                            <Download className="h-4 w-4" />
+                            Descargar en Markdown
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setVerTranscripcion(v => !v)}
+                            aria-expanded={verTranscripcion}
+                            className={quietBtn}
+                          >
+                            <ChevronDown className={`h-4 w-4 transition-transform ${verTranscripcion ? "rotate-180" : ""}`} />
+                            {verTranscripcion ? "Ocultar transcripción" : "Ver transcripción"}
+                          </button>
+                        </div>
+
+                        {verTranscripcion && (
+                          <div className="max-h-96 space-y-3 overflow-y-auto border-l pl-4 pr-2">
+                            {!lineas[s.id] ? (
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            ) : lineas[s.id].length === 0 ? (
+                              <p className="text-sm text-muted-foreground">Esta sesión no tiene transcripción.</p>
+                            ) : lineas[s.id].map((l, j) => (
+                              <div key={j} className="grid grid-cols-[3rem_1fr] gap-3">
+                                <span className="pt-1 text-xs text-muted-foreground tabular">{formatTime(l.timestamp_segundos)}</span>
+                                <p className="font-read text-[0.98rem] leading-relaxed">{l.texto}</p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
-                )}
-              </motion.div>
-              </Fragment>
-            ))}
-          </div>
-        )}
-      </main>
+                </Fragment>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

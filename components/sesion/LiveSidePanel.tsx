@@ -54,12 +54,12 @@ export function LiveSidePanel({ mensajes, cargando, onPreguntar, conceptos, anal
         </button>
         <button className={tabClass("conceptos")} onClick={() => setTab("conceptos")}>
           <Lightbulb className="w-3.5 h-3.5" /> Conceptos
-          {conceptos.length > 0 && <span className="text-[10px] font-mono opacity-70">{conceptos.length}</span>}
-          {sinVer > 0 && <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />}
+          {conceptos.length > 0 && <span className="text-[10px] tabular opacity-70">{conceptos.length}</span>}
+          {sinVer > 0 && <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />}
         </button>
         <button className={tabClass("notas")} onClick={() => setTab("notas")}>
           <Bookmark className="w-3.5 h-3.5" /> Notas
-          {notas.length > 0 && <span className="text-[10px] font-mono opacity-70">{notas.length}</span>}
+          {notas.length > 0 && <span className="text-[10px] tabular opacity-70">{notas.length}</span>}
         </button>
         {analizando && <Loader2 className="w-3 h-3 animate-spin text-muted-foreground ml-auto" />}
       </div>
@@ -76,14 +76,14 @@ export function LiveSidePanel({ mensajes, cargando, onPreguntar, conceptos, anal
                 </p>
               ) : notas.map((n, i) => (
                 <div key={notas.length - i} className="flex gap-2 rounded-xl border border-border/40 bg-muted/20 px-3 py-2 animate-in fade-in slide-in-from-top-1 duration-300">
-                  <span className="font-mono text-[10px] text-muted-foreground pt-0.5 shrink-0">{formatTime(n.timestamp_segundos)}</span>
+                  <span className="tabular text-[10px] text-muted-foreground pt-0.5 shrink-0">{formatTime(n.timestamp_segundos)}</span>
                   <p className={"text-xs leading-relaxed " + (n.texto ? "text-foreground/90" : "text-muted-foreground italic")}>
                     {n.texto || "Momento marcado"}
                   </p>
                 </div>
               ))}
             </div>
-            {notaError && <p className="text-[11px] text-red-400 pt-2">{notaError}</p>}
+            {notaError && <p className="text-[11px] text-destructive pt-2">{notaError}</p>}
             <form
               onSubmit={e => { e.preventDefault(); onNota(nota); setNota(""); }}
               className="flex items-center gap-2 pt-2"
@@ -113,11 +113,11 @@ export function LiveSidePanel({ mensajes, cargando, onPreguntar, conceptos, anal
             ) : conceptos.map((c, i) => (
               <div key={`${c.concepto}-${c.timestamp_segundos}`}
                 className={`rounded-xl border p-3 animate-in fade-in slide-in-from-top-1 duration-500 ${
-                  i < sinVer ? "border-amber-400/40 bg-amber-400/5" : "border-border/40 bg-muted/20"
+                  i < sinVer ? "border-primary/40 bg-primary/5" : "border-border/40 bg-muted/20"
                 }`}>
                 <div className="flex items-baseline gap-2">
                   <span className="text-sm font-bold">{c.concepto}</span>
-                  <span className="font-mono text-[10px] text-muted-foreground">{formatTime(c.timestamp_segundos)}</span>
+                  <span className="tabular text-[10px] text-muted-foreground">{formatTime(c.timestamp_segundos)}</span>
                 </div>
                 <p className="text-xs text-foreground/80 leading-relaxed mt-1">{c.explicacion}</p>
               </div>

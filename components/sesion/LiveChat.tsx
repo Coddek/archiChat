@@ -48,12 +48,12 @@ export function LiveChat({ mensajes, cargando, onPreguntar, compact = false }: P
         )}
         {mensajes.map((m, i) => (
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[88%] rounded-2xl px-3 py-2 text-sm leading-relaxed animate-in fade-in slide-in-from-bottom-1 duration-300 ${
+            <div className={`max-w-[88%] rounded-lg px-3 py-2 text-sm leading-relaxed animate-in fade-in slide-in-from-bottom-1 duration-300 ${
               m.role === "user"
-                ? "bg-primary text-primary-foreground rounded-br-md"
+                ? "bg-primary text-primary-foreground "
                 : m.error
-                  ? "bg-red-500/10 text-red-400 border border-red-500/20 rounded-bl-md"
-                  : "bg-muted/60 text-foreground rounded-bl-md"
+                  ? "bg-destructive/10 text-destructive border border-destructive/20 "
+                  : "bg-muted/60 text-foreground "
             }`}>
               {m.role === "assistant" && !m.error
                 ? <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0"><ReactMarkdown>{m.content}</ReactMarkdown></div>

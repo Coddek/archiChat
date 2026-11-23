@@ -63,15 +63,15 @@ export function SessionSummary({ resumen, documentId, sesionId, titulo }: Props)
       </div>
       <div className="flex flex-wrap gap-2">
         {documentId && (
-          <Button onClick={() => router.push(`/chat/${documentId}`)} className="rounded-2xl gap-2">
+          <Button onClick={() => router.push(`/chat/${documentId}`)} className="rounded-lg gap-2">
             <MessageSquare className="w-4 h-4" /> Chatear con esta sesión
           </Button>
         )}
-        <Button variant="outline" onClick={copiar} className="rounded-2xl gap-2">
+        <Button variant="outline" onClick={copiar} className="rounded-lg gap-2">
           <Copy className="w-4 h-4" /> Copiar resumen
         </Button>
         {sesionId && (
-          <Button variant="outline" onClick={estudiar} disabled={armando} className="rounded-2xl gap-2">
+          <Button variant="outline" onClick={estudiar} disabled={armando} className="rounded-lg gap-2">
             {armando
               ? <><Loader2 className="w-4 h-4 animate-spin" /> Armando tarjetas…</>
               : <><GraduationCap className="w-4 h-4" /> Modo estudio</>}
