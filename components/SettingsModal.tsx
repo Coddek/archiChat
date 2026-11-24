@@ -9,7 +9,6 @@ import {
   EyeOff,
   ExternalLink,
   Key,
-  Sparkles,
   CheckCircle2,
   Zap,
   Brain,
@@ -320,12 +319,8 @@ export function SettingsModal({
               {/* ── Header ────────────────────────────────────────────────── */}
               <div className="flex items-center justify-between px-6 pt-6 pb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-xl bg-primary flex items-center justify-center">
-                    {isOnboarding ? (
-                      <Sparkles className="w-4 h-4 text-white" />
-                    ) : (
-                      <Key className="w-4 h-4 text-white" />
-                    )}
+                  <div className="w-9 h-9 rounded-md bg-secondary flex items-center justify-center">
+                    <Key className="w-4 h-4 text-primary" />
                   </div>
                   <div>
                     <h2 className="font-bold text-base text-foreground tracking-tight">
@@ -527,8 +522,7 @@ export function SettingsModal({
                       className="space-y-4"
                     >
                       {hasServerKeys && !savedGroq && !savedGemini && (
-                        <div className="flex items-start gap-3 rounded-lg bg-primary/5 border border-primary/15 px-4 py-3">
-                          <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        <div className="flex items-start gap-3 rounded-md border-l-2 border-primary bg-secondary/60 px-4 py-3">
                           <p className="text-xs text-foreground/80 leading-relaxed">
                             <strong>La app ya funciona sin que configures nada.</strong>{" "}
                             Podés agregar tus propias claves si querés usar tus propios límites de API, pero no es obligatorio.

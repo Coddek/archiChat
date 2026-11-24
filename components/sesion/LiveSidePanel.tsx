@@ -42,8 +42,8 @@ export function LiveSidePanel({ mensajes, cargando, onPreguntar, conceptos, anal
   }, [conceptos.length]);
 
   const tabClass = (t: Tab) =>
-    `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-      tab === t ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground"
+    `flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium ${
+      tab === t ? "bg-secondary text-foreground" : "text-muted-foreground hover:text-foreground"
     }`;
 
   return (
@@ -55,7 +55,7 @@ export function LiveSidePanel({ mensajes, cargando, onPreguntar, conceptos, anal
         <button className={tabClass("conceptos")} onClick={() => setTab("conceptos")}>
           <Lightbulb className="w-3.5 h-3.5" /> Conceptos
           {conceptos.length > 0 && <span className="text-[10px] tabular opacity-70">{conceptos.length}</span>}
-          {sinVer > 0 && <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />}
+          {sinVer > 0 && <span className="w-1.5 h-1.5 rounded-full bg-chalk-blue" aria-label="Conceptos nuevos" />}
         </button>
         <button className={tabClass("notas")} onClick={() => setTab("notas")}>
           <Bookmark className="w-3.5 h-3.5" /> Notas
@@ -75,7 +75,7 @@ export function LiveSidePanel({ mensajes, cargando, onPreguntar, conceptos, anal
                   Marcá un momento importante o escribí una nota corta. Quedan con su minuto y aparecen en el resumen.
                 </p>
               ) : notas.map((n, i) => (
-                <div key={notas.length - i} className="flex gap-2 rounded-xl border border-border/40 bg-muted/20 px-3 py-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                <div key={notas.length - i} className="flex gap-2 rounded-md border-l-2 border-primary bg-secondary/60 px-3 py-2 animate-line-in">
                   <span className="tabular text-[10px] text-muted-foreground pt-0.5 shrink-0">{formatTime(n.timestamp_segundos)}</span>
                   <p className={"text-xs leading-relaxed " + (n.texto ? "text-foreground/90" : "text-muted-foreground italic")}>
                     {n.texto || "Momento marcado"}
@@ -93,11 +93,11 @@ export function LiveSidePanel({ mensajes, cargando, onPreguntar, conceptos, anal
                 onChange={e => setNota(e.target.value)}
                 placeholder="Nota rápida (vacío: solo marca el momento)"
                 maxLength={MAX_NOTA_LENGTH}
-                className="flex-1 min-w-0 h-10 rounded-xl bg-background/60 border border-border/50 px-3 text-sm outline-none focus:border-primary/40 placeholder:text-muted-foreground/50"
+                className="flex-1 min-w-0 h-10 rounded-md bg-background border px-3 text-sm outline-none focus:border-primary placeholder:text-muted-foreground"
               />
               <button
                 type="submit"
-                className="h-10 w-10 shrink-0 rounded-xl bg-primary text-primary-foreground flex items-center justify-center"
+                className="h-10 w-10 shrink-0 rounded-md bg-primary text-primary-foreground flex items-center justify-center"
                 title={nota.trim() ? "Guardar nota" : "Marcar este momento"}
               >
                 {nota.trim() ? <Plus className="w-4 h-4" /> : <Bookmark className="w-4 h-4" />}
@@ -112,14 +112,14 @@ export function LiveSidePanel({ mensajes, cargando, onPreguntar, conceptos, anal
               </p>
             ) : conceptos.map((c, i) => (
               <div key={`${c.concepto}-${c.timestamp_segundos}`}
-                className={`rounded-xl border p-3 animate-in fade-in slide-in-from-top-1 duration-500 ${
-                  i < sinVer ? "border-primary/40 bg-primary/5" : "border-border/40 bg-muted/20"
+                className={`rounded-md border-l-2 border-chalk-blue py-2.5 pl-3 pr-2 animate-line-in ${
+                  i < sinVer ? "bg-chalk-blue/15" : "bg-chalk-blue/5"
                 }`}>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-sm font-bold">{c.concepto}</span>
+                  <span className="text-sm font-medium text-chalk-blue">{c.concepto}</span>
                   <span className="tabular text-[10px] text-muted-foreground">{formatTime(c.timestamp_segundos)}</span>
                 </div>
-                <p className="text-xs text-foreground/80 leading-relaxed mt-1">{c.explicacion}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed mt-1">{c.explicacion}</p>
               </div>
             ))}
           </div>

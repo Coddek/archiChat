@@ -7,7 +7,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
-import { Send, Loader2, Sparkles } from "lucide-react";
+import { ArrowUp, Loader2 } from "lucide-react";
 import type { MensajeEnVivo } from "@/hooks/useLiveQuestions";
 
 const ACCIONES_RAPIDAS = [
@@ -41,29 +41,28 @@ export function LiveChat({ mensajes, cargando, onPreguntar, compact = false }: P
     <div className="flex flex-col min-h-0 h-full">
       <div className={`flex-1 min-h-0 overflow-y-auto space-y-3 ${compact ? "pr-1" : "pr-2"}`}>
         {mensajes.length === 0 && (
-          <div className="flex items-start gap-2 text-xs text-muted-foreground leading-relaxed">
-            <Sparkles className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
-            Preguntá lo que no entendiste sin dejar de mirar. Uso lo que se dijo en los últimos 10 minutos.
-          </div>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Preguntá lo que no entendiste sin dejar de mirar. Las respuestas usan lo que se dijo en los últimos diez minutos.
+          </p>
         )}
         {mensajes.map((m, i) => (
           <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[88%] rounded-lg px-3 py-2 text-sm leading-relaxed animate-in fade-in slide-in-from-bottom-1 duration-300 ${
+            <div className={`max-w-[88%] rounded-lg px-3 py-2 text-sm leading-relaxed animate-line-in ${
               m.role === "user"
-                ? "bg-primary text-primary-foreground "
+                ? "bg-primary/15 text-foreground "
                 : m.error
-                  ? "bg-destructive/10 text-destructive border border-destructive/20 "
-                  : "bg-muted/60 text-foreground "
+                  ? "bg-destructive/10 text-destructive "
+                  : "bg-secondary text-foreground "
             }`}>
               {m.role === "assistant" && !m.error
-                ? <div className="prose prose-sm dark:prose-invert max-w-none prose-p:my-1 prose-ul:my-1 prose-li:my-0"><ReactMarkdown>{m.content}</ReactMarkdown></div>
+                ? <div className="prose prose-sm dark:prose-invert max-w-none font-read prose-p:my-1 prose-ul:my-1 prose-li:my-0"><ReactMarkdown>{m.content}</ReactMarkdown></div>
                 : m.content}
             </div>
           </div>
         ))}
         {cargando && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Loader2 className="w-3 h-3 animate-spin" /> Pensando…
+            <Loader2 className="w-3 h-3 animate-spin" /> Respondiendo
           </div>
         )}
         <div ref={endRef} />
@@ -75,7 +74,7 @@ export function LiveChat({ mensajes, cargando, onPreguntar, compact = false }: P
             key={a.label}
             onClick={() => enviar(a.pregunta)}
             disabled={cargando}
-            className="text-[11px] px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-primary/5 transition-colors disabled:opacity-40"
+            className="text-xs px-2.5 py-1 rounded-md border text-muted-foreground hover:text-foreground hover:bg-secondary disabled:opacity-40"
           >
             {a.label}
           </button>
@@ -89,17 +88,17 @@ export function LiveChat({ mensajes, cargando, onPreguntar, compact = false }: P
         <input
           value={input}
           onChange={e => setInput(e.target.value)}
-          placeholder="¿Qué es eso que dijo?…"
+          placeholder="Preguntá algo de la clase"
           maxLength={500}
-          className="flex-1 min-w-0 h-10 rounded-xl bg-background/60 border border-border/50 px-3 text-sm outline-none focus:border-primary/40 placeholder:text-muted-foreground/50"
+          className="flex-1 min-w-0 h-10 rounded-md bg-background border px-3 text-sm outline-none focus:border-primary placeholder:text-muted-foreground"
         />
         <button
           type="submit"
           disabled={cargando || input.trim().length < 2}
-          className="h-10 w-10 shrink-0 rounded-xl bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40 transition-opacity"
+          className="h-10 w-10 shrink-0 rounded-md bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-40"
           title="Preguntar"
         >
-          <Send className="w-4 h-4" />
+          <ArrowUp className="w-4 h-4" />
         </button>
       </form>
     </div>
