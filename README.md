@@ -5,20 +5,23 @@ Chat con tus documentos y con lo que escuchás en vivo. Subís un PDF, un texto 
 **En producción:** https://archi-chat.vercel.app (de uso personal: la portada muestra qué hace y el registro está cerrado)
 
 <p align="center">
-  <img src="docs/sesion-en-vivo.png" width="820" alt="Sesión en vivo: transcripción con minutos a la izquierda y chat para preguntar a la derecha">
+  <img src="docs/sesion-en-vivo.png" width="820" alt="Sesión en vivo: la transcripción con su minuto, una pregunta respondida y la ventana flotante encima">
 </p>
 <p align="center">
-  <img src="docs/conceptos.png" width="260" alt="Conceptos detectados solos durante la clase, con su explicación">
-  <img src="docs/resumen.png" width="540" alt="Resumen al finalizar: puntos clave con minuto, términos importantes y qué repasar">
+  <img src="docs/conceptos.png" width="405" alt="Conceptos detectados solos durante la clase, con su explicación">
+  <img src="docs/resumen.png" width="405" alt="Resumen al finalizar: puntos clave con minuto, términos importantes y qué repasar">
 </p>
 <p align="center">
-  <img src="docs/chat-sesion.png" width="820" alt="Chat normal con la sesión: respuesta con nivel de confianza y los fragmentos citados con su minuto">
+  <img src="docs/chat.png" width="820" alt="Chat con una nota periodística: respuesta con su nivel de respaldo y los fragmentos citados">
 </p>
 <p align="center">
-  <img src="docs/dashboard.png" width="540" alt="Documentos: la sesión aparece junto al apunte y la página web">
-  <img src="docs/historial.png" width="270" alt="Historial de sesiones con su resumen">
+  <img src="docs/tarjetas.png" width="405" alt="Modo estudio: tarjeta de repaso armada a partir de la clase">
+  <img src="docs/historial.png" width="405" alt="Historial de sesiones con una descripción y los temas de cada una">
 </p>
-<p align="center"><sub>Capturas de la app en producción con una cuenta de demo. La "clase" es audio sintetizado y la transcripción está sin editar, tal como la devuelve Whisper.</sub></p>
+<p align="center">
+  <img src="docs/portada.png" width="820" alt="Portada pública con una demo de la transcripción en vivo">
+</p>
+<p align="center"><sub>Capturas de la app real. La "clase" es audio sintetizado y la transcripción está sin editar, tal como la devuelve Whisper.</sub></p>
 
 ## Funcionalidades
 
@@ -46,6 +49,7 @@ Chat con tus documentos y con lo que escuchás en vivo. Subís un PDF, un texto 
 
 - **Frontend:** Next.js 14 (App Router) + TypeScript + Tailwind CSS + shadcn/ui
 - **Backend:** API Routes de Next.js + Supabase (Postgres, pgvector, Auth, Row Level Security)
+- **Ingesta:** unpdf para PDFs y Readability (el modo lectura de Firefox) para páginas web
 - **IA:** Groq (`gpt-oss-120b` / `gpt-oss-20b`, Whisper large v3 turbo) y Gemini (Flash-Lite, embeddings)
 - **Deploy:** Vercel
 
@@ -59,6 +63,8 @@ Todo corre sobre los planes gratuitos de cada servicio.
 - **Whisper también se equivoca, y se filtra.** Con silencio inventa frases de subtítulos ("Gracias por ver", "Amara.org") y a veces repite en bucle el contexto que se le pasa; esos casos se descartan (con tests). Un medidor de volumen evita mandar los tramos en silencio, y los conceptos detectados (bien escritos) se le pasan a Whisper como vocabulario para que escriba bien los términos del tema.
 - **En vivo, sin RAG; después, con RAG.** Diez minutos de habla entran enteros en el prompt, así que las preguntas en vivo no necesitan búsqueda semántica y responden en un par de segundos. Al finalizar, la sesión pasa por el mismo pipeline que los PDFs, para poder buscar en clases de horas.
 - **Los límites gratuitos se calcularon antes de programar.** Whisper factura un mínimo de 10 segundos por pedido: con tramos de 5 s la cuota alcanzaba para ~2,7 h por día; con 10 s, ~5,5 h por modelo. La detección de conceptos usa Gemini para no gastar la cuota de Groq que necesita el chat.
+- **El nivel de respaldo está medido, no inventado.** El indicador viejo mostraba la similitud como porcentaje, y una pregunta que el documento no responde salía como "confianza media, 57 %". Con documentos reales, las preguntas que el documento responde dieron 0,67–0,85 de similitud y las de otro documento 0,52–0,62; los niveles fuerte, parcial y débil usan esos cortes ([`lib/confianza.ts`](lib/confianza.ts)). Las preguntas generales ("¿de qué trata?") no usan búsqueda por similitud: toman fragmentos de todo el documento.
+- **De una página web se guarda solo el contenido.** Readability separa el artículo de los menús, botones y barras laterales, y conserva los párrafos para que el chunker corte entre ideas y no a mitad de una.
 - **Cada usuario ve solo lo suyo, garantizado por la base.** Todas las tablas tienen RLS; las API Routes usan la sesión del usuario, así que una sesión ajena no se puede leer ni escribir aunque se conozca su id. Las API keys de los proveedores viven solo en el servidor.
 
 ## Correr el proyecto localmente
@@ -83,7 +89,9 @@ npx vitest run
 
 ## Estado del proyecto
 
-Funcional de punta a punta y en producción; Sessions se probó con una clase real por Zoom y con videos de YouTube. Empezó como proyecto final de un curso de IA para desarrolladores ([PROCESO.md](PROCESO.md)) y el plan de Sessions, con cada decisión y los bugs encontrados, está en [`plan-archichat-sessions.md`](plan-archichat-sessions.md). Pendiente: probar Sessions en iPhone y mostrar cuánta cuota gratuita queda en el día.
+Funcional de punta a punta y en producción; Sessions se probó con una clase real por Zoom y con videos de YouTube. Empezó como proyecto final de un curso de IA para desarrolladores ([PROCESO.md](PROCESO.md), histórico) y el plan de Sessions, con cada decisión y los bugs encontrados, está en [`plan-archichat-sessions.md`](plan-archichat-sessions.md).
+
+Próximos pasos: un set de evaluación para medir la calidad del RAG (recuperación y fidelidad de las respuestas) antes de ajustar el umbral de relevancia y sumar búsqueda híbrida; probar Sessions en iPhone; mostrar cuánta cuota gratuita queda en el día.
 
 ## Licencia
 
