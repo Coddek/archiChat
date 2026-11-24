@@ -19,7 +19,7 @@ const read = Literata({
 export const metadata: Metadata = {
   title: "archiChat — chateá con tus documentos y tus clases",
   description:
-    "Chat con documentos que cita de dónde sale cada respuesta, y transcripción en vivo de clases y reuniones que explica los conceptos mientras pasan.",
+    "Chat con documentos que cita de dónde sale cada respuesta, y transcripción en vivo de clases y reuniones que explica los conceptos en tiempo real.",
 };
 
 export default function RootLayout({

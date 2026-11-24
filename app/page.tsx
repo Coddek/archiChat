@@ -74,7 +74,7 @@ export default async function Home() {
       <section className="grid items-start gap-12 pb-24 pt-10 lg:grid-cols-[minmax(0,26rem)_1fr] lg:pt-16">
         <div>
           <h1 className="text-[2.6rem] font-semibold leading-[1.05] tracking-[-0.02em] sm:text-5xl">
-            Escucha la clase con vos y te la explica mientras pasa.
+            Escucha la clase con vos y te la explica en vivo.
           </h1>
           <p className="mt-6 max-w-[34rem] text-lg leading-relaxed text-muted-foreground">
             archiChat transcribe clases y reuniones en vivo, explica los conceptos que van apareciendo
